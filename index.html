@@ -6,9 +6,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#ffffff">
-    <title>বন্ধন - Home of Humanity</title>
+    <meta name="description" content="বন্ধন - Home of Humanity Member Directory">
+    
+    <title>বন্ধন</title>
     
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,12 +22,39 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; background-color: #f8f9fd; color: #111827; }
+        html, body { 
+            margin: 0; padding: 0; 
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8f9fd; 
+            color: #111827;
+        }
+
+        .progress-circle {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .progress-circle::before {
+            content: "";
+            position: absolute;
+            inset: 12px;
+            background-color: white;
+            border-radius: 50%;
+        }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .animate-slide-up { animation: slideUp 0.4s ease forwards; }
+        
+        /* Toast Animation */
         @keyframes toastSlideIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes toastSlideOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
         .toast-enter { animation: toastSlideIn 0.3s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -32,10 +64,17 @@
 <body>
     <div id="root"></div>
 
+    <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7'); // Cache buster updated
+                navigator.serviceWorker.register('sw.js?v=9')
+                    .then(registration => {
+                        console.log('Service Worker Registered Successfully', registration);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker Registration Failed', error);
+                    });
             });
         }
     </script>
@@ -43,6 +82,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
+        // Custom Toast Notification Component
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => {
                 const timer = setTimeout(onClose, 3000);
@@ -71,17 +111,21 @@
             const [showExpenseList, setShowExpenseList] = useState(false);
             const [showAboutUs, setShowAboutUs] = useState(false); 
             const [aboutUsText, setAboutUsText] = useState(''); 
-            
             const [loading, setLoading] = useState(true);
             const [syncStatus, setSyncStatus] = useState('Syncing...');
             const [theme, setTheme] = useState(localStorage.getItem('bondhanTheme') || 'green');
             const [greeting, setGreeting] = useState('');
             
+            // Authorization States
             const [isAuthorized, setIsAuthorized] = useState(false);
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [pinInput, setPinInput] = useState('');
             const SECRET_PIN = '1722'; 
+
+            // Form Modal State
+            const [showJoinForm, setShowJoinForm] = useState(false);
             
+            // Edit Feature States
             const [showEditPinModal, setShowEditPinModal] = useState(false);
             const [editTarget, setEditTarget] = useState(null); 
             const [showProfileEditForm, setShowProfileEditForm] = useState(false);
@@ -99,19 +143,18 @@
             
             const [isUpdating, setIsUpdating] = useState(false);
             const [toast, setToast] = useState(null); 
-            const [showJoinForm, setShowJoinForm] = useState(false);
-            
-            // =========================================================================
+
+            // ==========================================
+            // গুগল ফর্ম ও ডেটা লিংক
+            // ==========================================
             const GOOGLE_FORM_URL = 'https://forms.gle/2K9AST9ALqRqybho7';
-            // আপনার নতুন APPS SCRIPT URL এখানে দিন:
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiiAiB3SfB0xtw36fobz41Ce8R16BGNkFo9As7ocRUh0MORzP26s5mM0b8u0xmbdny/exec';
 
-            // Data URLs
+            // আপনার দেওয়া নতুন Google Sheet লিংকগুলো (CSV ফরম্যাটে)
             const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=2103360002';
             const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=1980828362';
             const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=1375885684';
             const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=429716275'; 
-            // =========================================================================
 
             const themeStyles = {
                 green: { name: 'Green (Brand)', primary: 'bg-emerald-600', hover: 'hover:bg-emerald-700', accent: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-100', hex: '#059669', gradient: 'from-emerald-600 to-green-400' },
@@ -131,6 +174,7 @@
                 else if (hour >= 12 && hour < 17) setGreeting('শুভ অপরাহ্ন ☀️');
                 else if (hour >= 17 && hour < 20) setGreeting('শুভ সন্ধ্যা 🌇');
                 else setGreeting('শুভ রাত্রি 🌙');
+                
                 fetchAllData();
             }, []);
 
@@ -143,7 +187,7 @@
                 fetchExpenses();
             };
 
-            // Checks if Google returned an HTML error page instead of CSV
+            // HTML error check function
             const isValidCSV = (text) => !text.includes('<!DOCTYPE html>') && !text.includes('<script>');
 
             const fetchExpenses = async () => {
@@ -152,6 +196,7 @@
                     if(!response.ok) return;
                     const csvText = await response.text();
                     if(!isValidCSV(csvText)) return;
+                    
                     const lines = csvText.split('\n');
                     const expList = [];
                     for (let i = 1; i < lines.length; i++) {
@@ -163,7 +208,7 @@
                 } catch (error) { console.error('Expense fetch error:', error); }
             };
 
-            const fetchAboutUs = async () => { 
+            const fetchAboutUs = async () => {
                 try {
                     const response = await fetch(`${ABOUT_US_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
@@ -175,12 +220,13 @@
                     if (firstCommaIdx !== -1) {
                         let text = csvText.substring(firstCommaIdx + 1).trim();
                         if (text.startsWith('"') && text.endsWith('"')) text = text.substring(1, text.length - 1);
-                        setAboutUsText(text.replace(/""/g, '"'));
+                        text = text.replace(/""/g, '"');
+                        setAboutUsText(text);
                     }
-                } catch (error) {}
+                } catch (error) { console.error('About Us fetch error:', error); }
             };
 
-            const fetchNotices = async () => { 
+            const fetchNotices = async () => {
                 try {
                     const response = await fetch(`${NOTICE_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
@@ -192,13 +238,14 @@
                         const line = lines[i].trim();
                         if (!line) continue;
                         const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, ''));
-                        // Ensure it's a valid notice row and not member data
-                        if (cells.length < 5 && (cells[1] || cells[2])) {
+                        
+                        // Strict check to ensure it's a notice and not member data
+                        if (cells.length < 10 && (cells[1] || cells[2]) && !cells[0].startsWith('BPM')) {
                             noticesList.push({ id: i, date: cells[0] || '', title: cells[1] || 'Notice', message: cells[2] || '', type: 'info' });
                         }
                     }
                     setNotices(noticesList.reverse());
-                } catch (error) {}
+                } catch (error) { console.error('Notice fetch error:', error); }
             };
 
             const fetchMembersFromSheets = async () => {
@@ -229,11 +276,13 @@
                                 parseFloat(cells[23])||0, parseFloat(cells[24])||0, parseFloat(cells[25])||0, 
                                 parseFloat(cells[26])||0, parseFloat(cells[27])||0, parseFloat(cells[28])||0
                             ];
+
                             const monthlyPaidTotal = paidAmounts.reduce((a, b) => a + b, 0); 
                             const expectedYearly = monthlySubscription * 12; 
                             
+                            // 30th Column (Index 29) for Donation
                             const donation = parseFloat(cells[29]) || 0;
-                            const totalYearly = monthlyPaidTotal + donation; 
+                            const totalYearly = monthlyPaidTotal + donation;
 
                             members.push({
                                 id: cells[0], 
@@ -262,8 +311,13 @@
                         const sm = members.find(m => m.id === selectedMemberId);
                         if(!sm) setSelectedMemberId(null);
                     }
-                    setSyncStatus('Updated'); setLoading(false);
-                } catch (error) { setLoading(false); setSyncStatus('Failed'); }
+                    setSyncStatus('Updated');
+                    setLoading(false);
+                } catch (error) {
+                    console.error('Error fetching members:', error);
+                    setSyncStatus('Failed');
+                    setLoading(false);
+                }
             };
 
             const stats = useMemo(() => {
@@ -276,25 +330,36 @@
             }, [membersData, expensesData]);
 
             const filteredMembers = useMemo(() => {
-                return membersData.filter(member => 
-                    member.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                    member.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                return membersData.filter(member =>
+                    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    member.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     member.mobile1.includes(searchTerm)
                 );
             }, [searchTerm, membersData]);
 
             const selectedMember = membersData.find(m => m.id === selectedMemberId);
 
+            const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            const monthLabels = ['জান', 'ফেব', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'অগাস্ট', 'সেপ্ট', 'অক্টো', 'নভেম', 'ডিসে'];
+
             const getMonthStatus = (member, month) => {
                 const value = parseFloat(member[month]);
-                return (!value || value === 0) ? { status: 'unpaid', amount: null } : { status: 'paid', amount: value };
+                if (!value || value === 0) {
+                    return { status: 'unpaid', amount: null };
+                }
+                return { status: 'paid', amount: value };
             };
 
             const handleAuthSubmit = () => {
                 if (pinInput === SECRET_PIN) {
-                    setIsAuthorized(true); setShowAuthModal(false); setPinInput('');
+                    setIsAuthorized(true);
+                    setShowAuthModal(false);
+                    setPinInput('');
                     showToast('সফলভাবে আনলক করা হয়েছে');
-                } else { showToast('দুঃখিত, পিন কোডটি ভুল হয়েছে!', 'error'); setPinInput(''); }
+                } else {
+                    showToast('দুঃখিত, পিন কোডটি ভুল হয়েছে!', 'error');
+                    setPinInput('');
+                }
             };
 
             const handleEditPinSubmit = () => {
@@ -457,6 +522,7 @@
                     <div className="relative mb-6 shadow-sm">
                         <i className="fas fa-search absolute left-4 top-4 text-gray-400"></i>
                         <input type="text" placeholder="Search members, ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-12 py-3.5 rounded-2xl bg-white border border-gray-100 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-200" />
+                        <i className="fas fa-microphone absolute right-4 top-4 text-gray-400"></i>
                     </div>
 
                     <div className="flex items-center justify-between mb-4">
@@ -540,7 +606,7 @@
                             </div>
 
                             <div className="flex items-center justify-between mb-3 mt-6">
-                                <h3 className="text-lg font-bold text-gray-900"><i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা (২০২৬)</h3>
+                                <h3 className="text-lg font-bold text-gray-900"><i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা ট্র্যাকিং (২০২৬)</h3>
                                 <button onClick={() => { setEditTarget('payment'); setShowEditPinModal(true); }} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-emerald-600 transition-colors"><i className="fas fa-pencil-alt text-xs"></i></button>
                             </div>
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
