@@ -187,12 +187,13 @@
                         const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"\vert{}"$/g, ''));
                         
                         if (cells[0] && cells[0].startsWith('BPM')) {
-                            const monthlySubscription = parseFloat(cells[15]) || 0; 
+                            // নতুন স্ট্রাকচার অনুযায়ী কলাম ম্যাপিং আপডেট করা হলো:
+                            const monthlySubscription = parseFloat(cells[16]) || 0; 
                             const paidAmounts = [
-                                parseFloat(cells[16])||0, parseFloat(cells[17])||0, parseFloat(cells[18])||0, 
-                                parseFloat(cells[19])||0, parseFloat(cells[20])||0, parseFloat(cells[21])||0, 
-                                parseFloat(cells[22])||0, parseFloat(cells[23])||0, parseFloat(cells[24])||0, 
-                                parseFloat(cells[25])||0, parseFloat(cells[26])||0, parseFloat(cells[27])||0  
+                                parseFloat(cells[17])||0, parseFloat(cells[18])||0, parseFloat(cells[19])||0, 
+                                parseFloat(cells[20])||0, parseFloat(cells[21])||0, parseFloat(cells[22])||0, 
+                                parseFloat(cells[23])||0, parseFloat(cells[24])||0, parseFloat(cells[25])||0, 
+                                parseFloat(cells[26])||0, parseFloat(cells[27])||0, parseFloat(cells[28])||0  
                             ];
 
                             const totalYearly = paidAmounts.reduce((a, b) => a + b, 0); 
@@ -200,7 +201,33 @@
                             const unpaid = Math.max(0, expectedYearly - totalYearly); 
 
                             members.push({
-                                id: cells[0], name: cells[1] || '', fatherName: cells[2] || '', dob: cells[3] || '', blood: cells[4] || '', address: cells[5] || '', occupation: cells[7] || '', nid: cells[8] || '', mobile1: cells[9] || '', email: cells[11] || '', monthlySubscription, jan: cells[16] || '0', feb: cells[17] || '0', mar: cells[18] || '0', apr: cells[19] || '0', may: cells[20] || '0', jun: cells[21] || '0', jul: cells[22] || '0', aug: cells[23] || '0', sep: cells[24] || '0', oct: cells[25] || '0', nov: cells[26] || '0', dec: cells[27] || '0', totalYearly, unpaid, expectedYearly
+                                id: cells[0], 
+                                status: cells[1] || '', // Active/Inactive Status
+                                name: cells[2] || '', 
+                                fatherName: cells[3] || '', 
+                                dob: cells[4] || '', 
+                                blood: cells[5] || '', 
+                                address: cells[6] || '', 
+                                occupation: cells[8] || '', 
+                                nid: cells[9] || '', 
+                                mobile1: cells[10] || '', 
+                                email: cells[12] || '', 
+                                monthlySubscription, 
+                                jan: cells[17] || '0', 
+                                feb: cells[18] || '0', 
+                                mar: cells[19] || '0', 
+                                apr: cells[20] || '0', 
+                                may: cells[21] || '0', 
+                                jun: cells[22] || '0', 
+                                jul: cells[23] || '0', 
+                                aug: cells[24] || '0', 
+                                sep: cells[25] || '0', 
+                                oct: cells[26] || '0', 
+                                nov: cells[27] || '0', 
+                                dec: cells[28] || '0', 
+                                totalYearly, 
+                                unpaid, 
+                                expectedYearly
                             });
                         }
                     }
@@ -343,7 +370,7 @@
                     <div className={`bg-gradient-to-br ${currentTheme.bgLight} to-white rounded-[24px] p-6 text-center border ${currentTheme.border}`}>
                         <div className={`w-12 h-12 ${currentTheme.primary} text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-md`}><i className="fas fa-users text-lg"></i></div>
                         <h3 className="text-xl font-bold text-gray-900 mb-1">Total Members</h3>
-                        <p className={`${currentTheme.accent} text-sm mb-4 font-medium`}>Currently {membersData.length} Active Members</p>
+                        <p className={`${currentTheme.accent} text-sm mb-4 font-medium`}>Currently {membersData.length} Members</p>
                         <button onClick={() => setActiveTab('members')} className={`${currentTheme.primary} ${currentTheme.hover} text-white w-full py-3 rounded-xl font-semibold shadow-md transition-colors`}>View Directory &rarr;</button>
                     </div>
                 </div>
@@ -365,9 +392,17 @@
                     <div className="space-y-3">
                         {filteredMembers.map((member) => (
                             <div key={member.id} onClick={() => { setSelectedMemberId(member.id); setActiveTab('profile'); }} className="bg-white p-4 rounded-[20px] shadow-sm border border-gray-50 flex items-center gap-4 cursor-pointer hover:shadow-md active:scale-[0.98] transition-all">
-                                <div className={`w-12 h-12 rounded-2xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-xl`}><i className="far fa-user"></i></div>
+                                <div className={`w-12 h-12 rounded-2xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-xl relative`}>
+                                    <i className="far fa-user"></i>
+                                    {/* Active/Inactive dot indicator */}
+                                    {member.status && (
+                                        <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${member.status.toLowerCase() === 'active' ? 'bg-green-500' : 'bg-red-400'}`}></div>
+                                    )}
+                                </div>
                                 <div className="flex-1">
-                                    <h4 className="font-semibold text-gray-800 text-base">{member.name}</h4>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-semibold text-gray-800 text-base">{member.name}</h4>
+                                    </div>
                                     <p className="text-xs text-gray-500 mt-0.5">{member.id} • {member.occupation || 'Member'}</p>
                                 </div>
                                 <div className="text-right">
@@ -396,7 +431,16 @@
                             <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 text-center mb-6 relative overflow-hidden">
                                 <div className={`absolute top-0 left-0 w-full h-16 bg-gradient-to-r ${currentTheme.gradient} opacity-10`}></div>
                                 <div className={`w-20 h-20 ${currentTheme.bgLight} ${currentTheme.accent} rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner z-10 relative mt-2`}><i className="fas fa-user"></i></div>
+                                
                                 <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
+                                
+                                {/* Status Badge */}
+                                {selectedMember.status && (
+                                    <span className={`inline-block mt-2 mb-1 text-[11px] font-bold px-3 py-1 rounded-full ${selectedMember.status.toLowerCase() === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        <i className={`fas ${selectedMember.status.toLowerCase() === 'active' ? 'fa-check-circle' : 'fa-times-circle'} mr-1`}></i> {selectedMember.status}
+                                    </span>
+                                )}
+
                                 <p className={`${currentTheme.accent} font-medium text-sm mt-1`}>{selectedMember.id}</p>
                                 <p className="text-gray-500 text-sm mt-1">{selectedMember.mobile1}</p>
                             </div>
@@ -413,7 +457,7 @@
                                 <p className="text-[10px] text-gray-400 text-right mt-1">Expected: ৳{selectedMember.expectedYearly}</p>
                             </div>
 
-                            {/* Monthly Tracking Grid */}
+                            {/* Monthly Tracking Grid Addition */}
                             <div className="flex items-center gap-2 mb-3 mt-6">
                                 <h3 className="text-lg font-bold text-gray-900"><i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা ট্র্যাকিং (২০২৬)</h3>
                             </div>
