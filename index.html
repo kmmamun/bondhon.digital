@@ -6,6 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="বন্ধন - Home of Humanity Member Directory">
     <title>বন্ধন - Home of Humanity</title>
     
     <link rel="manifest" href="manifest.json">
@@ -19,6 +20,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; background-color: #f8f9fd; color: #111827; }
+        .progress-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .progress-circle::before { content: ""; position: absolute; inset: 12px; background-color: white; border-radius: 50%; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -35,7 +38,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5'); // Cache buster updated
+                navigator.serviceWorker.register('sw.js?v=6'); // Cache buster updated
             });
         }
     </script>
@@ -105,20 +108,24 @@
             const GOOGLE_FORM_URL = 'https://forms.gle/2K9AST9ALqRqybho7';
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiiAiB3SfB0xtw36fobz41Ce8R16BGNkFo9As7ocRUh0MORzP26s5mM0b8u0xmbdny/exec';
 
-            // CORS Bypass URLs using gviz
-            const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=429716275';
-            const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=1626284683';
-            const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=1116664985';
-            const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=1943806316'; 
+            // CSV Export URLs based on your provided links
+            const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=2103360002';
+            const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=1980828362';
+            const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=1375885684';
+            const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=429716275'; 
             // =========================================================================
 
-            const themeStyles = { green: { primary: 'bg-emerald-600', hover: 'hover:bg-emerald-700', accent: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-100', hex: '#059669', gradient: 'from-emerald-600 to-green-400' } };
-            const currentTheme = themeStyles.green;
+            const themeStyles = {
+                green: { name: 'Green (Brand)', primary: 'bg-emerald-600', hover: 'hover:bg-emerald-700', accent: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-100', hex: '#059669', gradient: 'from-emerald-600 to-green-400' },
+                gray: { name: 'Gray (Roof)', primary: 'bg-slate-600', hover: 'hover:bg-slate-700', accent: 'text-slate-600', bgLight: 'bg-slate-100', border: 'border-slate-200', hex: '#475569', gradient: 'from-slate-600 to-gray-400' },
+                red: { name: 'Red (Figure)', primary: 'bg-rose-600', hover: 'hover:bg-rose-700', accent: 'text-rose-600', bgLight: 'bg-rose-50', border: 'border-rose-100', hex: '#e11d48', gradient: 'from-rose-600 to-pink-500' },
+                yellow: { name: 'Yellow (Figure)', primary: 'bg-amber-500', hover: 'hover:bg-amber-600', accent: 'text-amber-600', bgLight: 'bg-amber-50', border: 'border-amber-100', hex: '#f59e0b', gradient: 'from-amber-500 to-yellow-400' },
+                purple: { name: 'Purple (Figure)', primary: 'bg-fuchsia-600', hover: 'hover:bg-fuchsia-700', accent: 'text-fuchsia-600', bgLight: 'bg-fuchsia-50', border: 'border-fuchsia-100', hex: '#c026d3', gradient: 'from-fuchsia-600 to-purple-400' }
+            };
 
-            const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-            const monthLabels = ['জান', 'ফেব', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'অগাস্ট', 'সেপ্ট', 'অক্টো', 'নভেম', 'ডিসে'];
+            const currentTheme = themeStyles[theme] || themeStyles.green;
 
-            const showToast = (message, type = 'success') => setToast({ message, type });
+            useEffect(() => { localStorage.setItem('bondhanTheme', theme); }, [theme]);
 
             useEffect(() => {
                 const hour = new Date().getHours();
@@ -129,27 +136,26 @@
                 fetchAllData();
             }, []);
 
+            const showToast = (message, type = 'success') => setToast({ message, type });
+
             const fetchAllData = () => {
                 fetchMembersFromSheets();
                 fetchNotices();
                 fetchAboutUs();
                 fetchExpenses();
-            }
-
-            // Checks if Google returned an HTML error page instead of CSV
-            const isValidCSV = (text) => !text.includes('<!DOCTYPE html>') && !text.includes('script>');
+            };
 
             const fetchExpenses = async () => {
                 try {
                     const response = await fetch(`${EXPENSE_SHEET_URL}&t=${new Date().getTime()}`);
+                    if(!response.ok) return;
                     const csvText = await response.text();
-                    if(!isValidCSV(csvText)) return;
-                    
                     const lines = csvText.split('\n');
                     const expList = [];
                     for (let i = 1; i < lines.length; i++) {
-                        if (!lines[i].trim()) continue;
-                        const cells = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, ''));
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, ''));
                         if(cells[1]) expList.push({ date: cells[0], purpose: cells[1], amount: parseFloat(cells[2]) || 0 });
                     }
                     setExpensesData(expList.reverse());
@@ -160,10 +166,6 @@
                 try {
                     const response = await fetch(`${ABOUT_US_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
-                    if(!isValidCSV(csvText)) {
-                        setAboutUsText("ডেটা লোড করা যাচ্ছে না। গুগল শিটটি 'Public' করা আছে কিনা চেক করুন।");
-                        return;
-                    }
                     const firstCommaIdx = csvText.indexOf(',');
                     if (firstCommaIdx !== -1) {
                         let text = csvText.substring(firstCommaIdx + 1).trim();
@@ -177,8 +179,6 @@
                 try {
                     const response = await fetch(`${NOTICE_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
-                    if(!isValidCSV(csvText)) return;
-                    
                     const lines = csvText.split('\n');
                     const noticesList = [];
                     for (let i = 1; i < lines.length; i++) {
@@ -197,12 +197,6 @@
                     const response = await fetch(`${MEMBERS_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
                     
-                    if(!isValidCSV(csvText)) {
-                        setLoading(false); setSyncStatus('Failed');
-                        alert("Error: গুগল শিটটি 'Public' করা নেই! দয়া করে শিটের Share সেটিংসে গিয়ে 'Anyone with the link' করুন।");
-                        return;
-                    }
-
                     const lines = csvText.split('\n');
                     const members = [];
 
@@ -320,7 +314,7 @@
                         setShowProfileEditForm(false); setShowPaymentEditForm(false); setShowDonationEditForm(false); setShowAddNoticeForm(false); setShowAddExpenseForm(false);
                         setTimeout(fetchAllData, 1500); 
                     } else { showToast('আপডেট ব্যর্থ: ' + result.message, 'error'); }
-                } catch (e) { showToast('নেটওয়ার্ক সমস্যা! আপনার ইন্টারনেট চেক করুন।', 'error'); }
+                } catch (e) { showToast('নেটওয়ার্ক সমস্যা! ইন্টারনেট সংযোগ পরীক্ষা করুন।', 'error'); }
                 setIsUpdating(false);
             };
 
@@ -393,7 +387,7 @@
                                     <p className="text-xs text-emerald-600 font-semibold mb-1">বর্তমান ব্যালেন্স</p>
                                     <h3 className="text-xl font-bold text-emerald-700">৳ {stats.currentBalance.toLocaleString()}</h3>
                                 </div>
-                                <div className="bg-red-50 rounded-xl p-3 cursor-pointer" onClick={() => setShowExpenseList(true)}>
+                                <div className="bg-red-50 rounded-xl p-3 cursor-pointer hover:bg-red-100 transition-colors" onClick={() => setShowExpenseList(true)}>
                                     <p className="text-xs text-red-600 font-semibold mb-1">মোট খরচ <i className="fas fa-chevron-right text-[10px] ml-1 opacity-50"></i></p>
                                     <h3 className="text-xl font-bold text-red-700">৳ {stats.totalExpenseAmt.toLocaleString()}</h3>
                                 </div>
@@ -404,8 +398,8 @@
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-gray-900">Quick Access</h3>
                         <div className="flex gap-2">
-                            <button onClick={() => { setEditTarget('add_notice'); setShowEditPinModal(true); }} className={`w-8 h-8 rounded-full ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center`} title="নোটিশ যোগ করুন"><i className="fas fa-bullhorn text-sm"></i></button>
-                            <button onClick={() => { setEditTarget('add_expense'); setShowEditPinModal(true); }} className={`w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center`} title="খরচ যোগ করুন"><i className="fas fa-minus-circle text-sm"></i></button>
+                            <button onClick={() => { setEditTarget('add_notice'); setShowEditPinModal(true); }} className={`w-8 h-8 rounded-full ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center shadow-sm`} title="নোটিশ যোগ করুন"><i className="fas fa-bullhorn text-sm"></i></button>
+                            <button onClick={() => { setEditTarget('add_expense'); setShowEditPinModal(true); }} className={`w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shadow-sm`} title="খরচ যোগ করুন"><i className="fas fa-minus-circle text-sm"></i></button>
                         </div>
                     </div>
 
@@ -530,7 +524,7 @@
                             </div>
 
                             <div className="flex items-center justify-between mb-3 mt-6">
-                                <h3 className="text-lg font-bold text-gray-900"><i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা ট্র্যাকিং (২০২৬)</h3>
+                                <h3 className="text-lg font-bold text-gray-900"><i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা (২০২৬)</h3>
                                 <button onClick={() => { setEditTarget('payment'); setShowEditPinModal(true); }} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-emerald-600 transition-colors"><i className="fas fa-pencil-alt text-xs"></i></button>
                             </div>
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
