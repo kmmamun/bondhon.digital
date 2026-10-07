@@ -92,8 +92,16 @@
 
     <script>
         if ('serviceWorker' in navigator) {
+            const hadController = !!navigator.serviceWorker.controller;
+            let reloaded = false;
+            // নতুন sw.js চালু হলে একবার অটো-রিলোড (যাতে পুরোনো ক্যাশ না থাকে)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!hadController || reloaded) return;
+                reloaded = true;
+                window.location.reload();
+            });
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=11'); // Cache buster updated
+                navigator.serviceWorker.register('sw.js?v=12').then(reg => reg.update()).catch(() => {}); // Cache buster updated
             });
         }
     </script>
@@ -226,10 +234,26 @@
                 fetchAllData();
             }, []);
 
+            // অ্যাপ আবার ওপেন/ফোকাস হলে, নেট ফিরলে এবং প্রতি ২ মিনিটে অটো-রিফ্রেশ
+            useEffect(() => {
+                const refresh = () => fetchAllData(true);
+                const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+                document.addEventListener('visibilitychange', onVisible);
+                window.addEventListener('online', refresh);
+                const timer = setInterval(() => {
+                    if (document.visibilityState === 'visible') refresh();
+                }, 120000);
+                return () => {
+                    document.removeEventListener('visibilitychange', onVisible);
+                    window.removeEventListener('online', refresh);
+                    clearInterval(timer);
+                };
+            }, []);
+
             const showToast = (message, type = 'success') => setToast({ message, type });
 
-            const fetchAllData = () => {
-                fetchMembersFromSheets();
+            const fetchAllData = (silent = false) => {
+                fetchMembersFromSheets(silent === true);
                 fetchNotices();
                 fetchAboutUs();
                 fetchExpenses();
@@ -239,20 +263,56 @@
                 return !text.includes('<!DOCTYPE html>') && !text.includes('<script>');
             };
 
+            // সঠিক CSV পার্সার: কোটের ভেতরের কমা, নতুন লাইন (Enter) ও \r\n সব হ্যান্ডেল করে
+            const parseCSV = (text) => {
+                const rows = [];
+                let row = [];
+                let cell = '';
+                let inQuotes = false;
+                if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+                for (let i = 0; i < text.length; i++) {
+                    const ch = text[i];
+                    if (inQuotes) {
+                        if (ch === '"') {
+                            if (text[i + 1] === '"') { cell += '"'; i++; }
+                            else inQuotes = false;
+                        } else {
+                            cell += ch;
+                        }
+                    } else if (ch === '"') {
+                        inQuotes = true;
+                    } else if (ch === ',') {
+                        row.push(cell.trim());
+                        cell = '';
+                    } else if (ch === '\n' || ch === '\r') {
+                        if (ch === '\r' && text[i + 1] === '\n') i++;
+                        row.push(cell.trim());
+                        cell = '';
+                        if (row.some(c => c !== '')) rows.push(row);
+                        row = [];
+                    } else {
+                        cell += ch;
+                    }
+                }
+                row.push(cell.trim());
+                if (row.some(c => c !== '')) rows.push(row);
+                return rows;
+            };
+
             const fetchExpenses = async () => {
                 try {
-                    const response = await fetch(`${EXPENSE_SHEET_URL}&t=${new Date().getTime()}`);
+                    const response = await fetch(`${EXPENSE_SHEET_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
                     if(!response.ok) return;
                     
                     const csvText = await response.text();
                     if(!isValidCSV(csvText)) return;
                     
-                    const lines = csvText.split('\n');
+                    const rows = parseCSV(csvText);
                     const expList = [];
                     
-                    for (let i = 1; i < lines.length; i++) {
-                        if (!lines[i].trim()) continue;
-                        const cells = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, ''));
+                    for (let i = 1; i < rows.length; i++) {
+                        const cells = rows[i];
                         if(cells[1]) {
                             expList.push({ 
                                 date: cells[0], 
@@ -269,7 +329,7 @@
 
             const fetchAboutUs = async () => { 
                 try {
-                    const response = await fetch(`${ABOUT_US_SHEET_URL}&t=${new Date().getTime()}`);
+                    const response = await fetch(`${ABOUT_US_SHEET_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
                     const csvText = await response.text();
                     
                     if(!isValidCSV(csvText)) {
@@ -290,17 +350,15 @@
 
             const fetchNotices = async () => { 
                 try {
-                    const response = await fetch(`${NOTICE_SHEET_URL}&t=${new Date().getTime()}`);
+                    const response = await fetch(`${NOTICE_SHEET_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
                     const csvText = await response.text();
                     if(!isValidCSV(csvText)) return;
                     
-                    const lines = csvText.split('\n');
+                    const rows = parseCSV(csvText);
                     const noticesList = [];
                     
-                    for (let i = 1; i < lines.length; i++) {
-                        const line = lines[i].trim();
-                        if (!line) continue;
-                        const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, ''));
+                    for (let i = 1; i < rows.length; i++) {
+                        const cells = rows[i];
                         
                         if (cells.length < 10 && (cells[1] || cells[2]) && !cells[0].startsWith('BPM')) {
                             noticesList.push({ 
@@ -316,28 +374,26 @@
                 } catch (error) {}
             };
 
-            const fetchMembersFromSheets = async () => {
+            const fetchMembersFromSheets = async (silent = false) => {
                 try {
                     setSyncStatus('Syncing...');
-                    const response = await fetch(`${MEMBERS_SHEET_URL}&t=${new Date().getTime()}`);
+                    const response = await fetch(`${MEMBERS_SHEET_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
                     const csvText = await response.text();
                     
                     if(!isValidCSV(csvText)) {
                         setLoading(false); 
                         setSyncStatus('Failed');
-                        alert("Error: গুগল শিটটি 'Public' করা নেই! দয়া করে শিটের Share সেটিংসে গিয়ে 'Anyone with the link' করুন।");
+                        if (!silent) alert("Error: গুগল শিটটি 'Public' করা নেই! দয়া করে শিটের Share সেটিংসে গিয়ে 'Anyone with the link' করুন।");
                         return;
                     }
 
-                    const lines = csvText.split('\n');
+                    const rows = parseCSV(csvText);
                     const members = [];
 
-                    for (let i = 1; i < lines.length; i++) {
-                        const line = lines[i].trim();
-                        if (!line) continue;
-                        const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, ''));
+                    for (let i = 1; i < rows.length; i++) {
+                        const cells = rows[i];
                         
-                        if (cells[0] && cells[0].startsWith('BPM')) {
+                        if (cells[0] && (/^BPM/i.test(cells[0]) || (/\d/.test(cells[0]) && cells[2]))) {
                             const monthlySubscription = parseFloat(cells[16]) || 0; 
                             const paidAmounts = [
                                 parseFloat(cells[17]) || 0, 
@@ -395,10 +451,7 @@
                     
                     setMembersData(members);
                     
-                    if(selectedMemberId) {
-                        const sm = members.find(m => m.id === selectedMemberId);
-                        if(!sm) setSelectedMemberId(null);
-                    }
+                    setSelectedMemberId(prev => (prev && !members.find(m => m.id === prev)) ? null : prev);
                     
                     setSyncStatus('Updated'); 
                     setLoading(false);
