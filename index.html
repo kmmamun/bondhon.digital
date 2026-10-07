@@ -22,6 +22,7 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
         * { box-sizing: border-box; }
         html, body { 
             margin: 0; padding: 0; 
@@ -29,21 +30,45 @@
             background-color: #f8f9fd; 
             color: #111827;
         }
-        .progress-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .progress-circle::before { content: ""; position: absolute; inset: 12px; background-color: white; border-radius: 50%; }
+
+        .progress-circle {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .progress-circle::before {
+            content: "";
+            position: absolute;
+            inset: 12px;
+            background-color: white;
+            border-radius: 50%;
+        }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .animate-slide-up { animation: slideUp 0.4s ease forwards; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
+    <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW failed', err));
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('Service Worker Registered Successfully', registration);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker Registration Failed', error);
+                    });
             });
         }
     </script>
@@ -65,15 +90,23 @@
             const [theme, setTheme] = useState(localStorage.getItem('bondhanTheme') || 'green');
             const [greeting, setGreeting] = useState('');
             
+            // Authorization States
             const [isAuthorized, setIsAuthorized] = useState(false);
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [pinInput, setPinInput] = useState('');
             const SECRET_PIN = '1722'; 
+
+            // Form Modal State
             const [showJoinForm, setShowJoinForm] = useState(false);
 
+            // ==========================================
+            // গুগল ফর্মের লিংক
+            // ==========================================
             const GOOGLE_FORM_URL = 'https://forms.gle/2K9AST9ALqRqybho7';
 
-            // সরাসরি গুগল শিট লিংক (CORS বাইপাসের জন্য অলটারনেটিভ বা পাবলিক লিংক)
+            // ==========================================
+            // সরাসরি গুগল শিট লিংক (GitHub Pages এর জন্য)
+            // ==========================================
             const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=2103360002';
             const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=1980828362';
             const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=1375885684';
@@ -109,6 +142,7 @@
                 }
             };
 
+            // Fetch Functions
             const fetchAboutUs = async () => {
                 try {
                     const response = await fetch(ABOUT_US_SHEET_URL);
@@ -184,10 +218,13 @@
                 fetchMembersFromSheets();
                 fetchNotices();
                 fetchAboutUs();
+                const interval = setInterval(fetchMembersFromSheets, 5 * 60 * 1000);
+                return () => clearInterval(interval);
             }, []);
 
             const stats = useMemo(() => {
-                let totalExpected = 0, totalCollected = 0;
+                let totalExpected = 0;
+                let totalCollected = 0;
                 membersData.forEach(m => { totalExpected += m.expectedYearly; totalCollected += m.totalYearly; });
                 const percentage = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
                 return { totalExpected, totalCollected, percentage };
@@ -202,73 +239,263 @@
             }, [searchTerm, membersData]);
 
             const selectedMember = membersData.find(m => m.id === selectedMemberId);
+
             const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
             const monthLabels = ['জান', 'ফেব', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'অগাস্ট', 'সেপ্ট', 'অক্টো', 'নভেম', 'ডিসে'];
 
             const getMonthStatus = (member, month) => {
                 const value = parseFloat(member[month]);
-                if (!value || value === 0) return { status: 'unpaid', amount: null };
+                if (!value || value === 0) {
+                    return { status: 'unpaid', amount: null };
+                }
                 return { status: 'paid', amount: value };
             };
 
             if (loading && membersData.length === 0) {
                 return (
                     <div className="flex flex-col items-center justify-center min-h-screen bg-[#f8f9fd]">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-100 border-t-emerald-600 mb-4"></div>
+                        <div className={`animate-spin rounded-full h-12 w-12 border-4 border-gray-100 border-t-${currentTheme.hex} mb-4`} style={{ borderTopColor: currentTheme.hex }}></div>
                         <p className="text-gray-500 font-medium">Loading Data...</p>
                     </div>
                 );
             }
 
-            return (
-                <div className="relative min-h-screen max-w-md mx-auto bg-[#f8f9fd] shadow-2xl overflow-hidden selection:bg-gray-200">
-                    {activeTab !== 'profile' && (
-                        <div className="bg-white sticky top-0 z-30 shadow-sm rounded-b-2xl mb-4">
-                            <div className="flex items-center justify-between px-6 pt-5 pb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full bg-gradient-to-tr ${currentTheme.gradient} flex items-center justify-center text-white font-bold shadow-md`}>B</div>
-                                    <h1 className="text-xl font-bold text-gray-900">{activeTab === 'home' ? 'Home' : 'Directory'}</h1>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={() => setShowNotices(true)} className="relative p-2 rounded-full text-gray-500 hover:bg-gray-100 transition">
-                                        <i className="far fa-bell text-xl"></i>
-                                        {notices.length > 0 && <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="px-6 pb-4 flex gap-3 justify-start">
-                                {Object.keys(themeStyles).map(tKey => (
-                                    <button key={tKey} onClick={() => setTheme(tKey)} className={`w-6 h-6 rounded-full transition-all duration-300 ${themeStyles[tKey].primary} ${theme === tKey ? 'scale-125 ring-2 ring-offset-2 ring-gray-300 shadow-md' : 'opacity-60 hover:opacity-100'}`} />
-                                ))}
+            const renderHeader = (title) => (
+                <div className="bg-white sticky top-0 z-30 shadow-sm rounded-b-2xl mb-4">
+                    <div className="flex items-center justify-between px-6 pt-5 pb-3">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full bg-gradient-to-tr ${currentTheme.gradient} flex items-center justify-center text-white font-bold shadow-md`}>B</div>
+                            <h1 className="text-xl font-bold text-gray-900">{title}</h1>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setShowNotices(true)} className="relative p-2 rounded-full text-gray-500 hover:bg-gray-100 transition">
+                                <i className="far fa-bell text-xl"></i>
+                                {notices.length > 0 && <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>}
+                            </button>
+                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center text-gray-500">
+                                <i className="fas fa-user-alt"></i>
                             </div>
                         </div>
+                    </div>
+                    <div className="px-6 pb-4 flex gap-3 justify-start">
+                        {Object.keys(themeStyles).map(tKey => (
+                            <button key={tKey} onClick={() => setTheme(tKey)} className={`w-6 h-6 rounded-full transition-all duration-300 ${themeStyles[tKey].primary} ${theme === tKey ? 'scale-125 ring-2 ring-offset-2 ring-gray-300 shadow-md' : 'opacity-60 hover:opacity-100'}`} title={themeStyles[tKey].name} />
+                        ))}
+                    </div>
+                </div>
+            );
+
+            const renderHome = () => (
+                <div className="p-6 pt-2 animate-slide-up pb-28">
+                    <div className="mb-6 mt-2">
+                        <h2 className="text-2xl font-bold text-gray-900">{greeting}</h2>
+                        <p className={`font-medium mt-1 ${currentTheme.accent}`}>বন্ধন-এ আপনাকে স্বাগতম!</p>
+                    </div>
+
+                    <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 flex items-center justify-between mb-8">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <p className="text-gray-500 text-sm font-medium">Total Collected Fund</p>
+                                <button onClick={() => isAuthorized ? setIsAuthorized(false) : setShowAuthModal(true)} className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${isAuthorized ? 'bg-gray-100 text-gray-500' : currentTheme.bgLight + ' ' + currentTheme.accent}`}>
+                                    <i className={`fas ${isAuthorized ? 'fa-unlock-alt' : 'fa-lock'} text-xs`}></i>
+                                </button>
+                            </div>
+                            <h2 className="text-3xl font-bold text-gray-900 mb-1">৳ {isAuthorized ? stats.totalCollected.toLocaleString() : '****'}</h2>
+                            <p className="text-gray-400 text-sm">Target: ৳ {isAuthorized ? stats.totalExpected.toLocaleString() : '****'}</p>
+                        </div>
+                        <div className="relative w-24 h-24 progress-circle" style={{ background: `conic-gradient(${currentTheme.hex} ${isAuthorized ? stats.percentage : 0}%, #e0e7ff 0deg)` }}>
+                            <div className="relative z-10 flex flex-col items-center">
+                                <span className="text-xl font-bold text-gray-800">{isAuthorized ? stats.percentage : '**'}%</span>
+                                <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Collected</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-gray-900">Quick Access</h3>
+                        <i className="fas fa-sliders-h text-gray-400"></i>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div onClick={() => setShowAboutUs(true)} className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-50 cursor-pointer hover:shadow-md transition-shadow">
+                            <div className={`w-10 h-10 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-lg mb-3`}><i className="fas fa-info-circle"></i></div>
+                            <h4 className="font-semibold text-gray-800">About Us</h4>
+                            <p className="text-xs text-gray-400 mt-1">Bondhan Info</p>
+                        </div>
+                        <a href="https://sites.google.com/view/bondhon17/gallery?authuser=0" target="_blank" className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-50 block cursor-pointer hover:shadow-md transition-shadow">
+                            <div className={`w-10 h-10 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-lg mb-3`}><i className="fas fa-images"></i></div>
+                            <h4 className="font-semibold text-gray-800">Gallery</h4>
+                            <p className="text-xs text-gray-400 mt-1">Event Photos</p>
+                        </a>
+                    </div>
+                    
+                    <div onClick={() => setShowJoinForm(true)} className={`mb-8 bg-gradient-to-r ${currentTheme.gradient} text-white rounded-[20px] p-4 flex items-center justify-between cursor-pointer shadow-md hover:shadow-lg transition-all`}>
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl"><i className="fas fa-user-plus"></i></div>
+                            <div>
+                                <h4 className="font-bold">সদস্য হতে চান?</h4>
+                                <p className="text-xs opacity-90 mt-0.5">এখানে ক্লিক করে আবেদন করুন</p>
+                            </div>
+                        </div>
+                        <i className="fas fa-chevron-right opacity-80"></i>
+                    </div>
+
+                    <div className={`bg-gradient-to-br ${currentTheme.bgLight} to-white rounded-[24px] p-6 text-center border ${currentTheme.border}`}>
+                        <div className={`w-12 h-12 ${currentTheme.primary} text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-md`}><i className="fas fa-users text-lg"></i></div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">Total Members</h3>
+                        <p className={`${currentTheme.accent} text-sm mb-4 font-medium`}>Currently {membersData.length} Active Members</p>
+                        <button onClick={() => setActiveTab('members')} className={`${currentTheme.primary} ${currentTheme.hover} text-white w-full py-3 rounded-xl font-semibold shadow-md transition-colors`}>View Directory &rarr;</button>
+                    </div>
+                </div>
+            );
+
+            const renderMembers = () => (
+                <div className="p-6 pt-2 animate-slide-up pb-28">
+                    <div className="relative mb-6 shadow-sm">
+                        <i className="fas fa-search absolute left-4 top-4 text-gray-400"></i>
+                        <input type="text" placeholder="Search members, ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-12 py-3.5 rounded-2xl bg-white border border-gray-100 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-200" />
+                        <i className="fas fa-microphone absolute right-4 top-4 text-gray-400"></i>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-gray-900">Member Directory</h3>
+                        <div className={`flex items-center gap-1 ${currentTheme.accent} text-sm font-medium cursor-pointer`}>Sort by <i className="fas fa-chevron-down text-xs ml-1"></i></div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {filteredMembers.map((member) => (
+                            <div key={member.id} onClick={() => { setSelectedMemberId(member.id); setActiveTab('profile'); }} className="bg-white p-4 rounded-[20px] shadow-sm border border-gray-50 flex items-center gap-4 cursor-pointer hover:shadow-md active:scale-[0.98] transition-all">
+                                <div className={`w-12 h-12 rounded-2xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-xl`}><i className="far fa-user"></i></div>
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-gray-800 text-base">{member.name}</h4>
+                                    <p className="text-xs text-gray-500 mt-0.5">{member.id} • {member.occupation || 'Member'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-semibold text-gray-800">৳ {member.totalYearly}</p>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">Paid</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {filteredMembers.length === 0 && (
+                        <div className="text-center py-10 opacity-50"><i className="fas fa-folder-open text-4xl mb-3"></i><p>No members found</p></div>
                     )}
+                </div>
+            );
+
+            const renderProfile = () => {
+                if (!selectedMember) return null;
+                return (
+                    <div className="animate-slide-up pb-28">
+                        <div className="bg-white px-6 py-4 flex items-center gap-3 border-b border-gray-100 sticky top-0 z-20">
+                            <button onClick={() => setActiveTab('members')} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-gray-100"><i className="fas fa-arrow-left"></i></button>
+                            <h2 className="font-semibold text-gray-900">Member Details</h2>
+                        </div>
+                        
+                        <div className="p-6">
+                            <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 text-center mb-6 relative overflow-hidden">
+                                <div className={`absolute top-0 left-0 w-full h-16 bg-gradient-to-r ${currentTheme.gradient} opacity-10`}></div>
+                                <div className={`w-20 h-20 ${currentTheme.bgLight} ${currentTheme.accent} rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner z-10 relative mt-2`}><i className="fas fa-user"></i></div>
+                                <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
+                                <p className={`${currentTheme.accent} font-medium text-sm mt-1`}>{selectedMember.id}</p>
+                                <p className="text-gray-500 text-sm mt-1">{selectedMember.mobile1}</p>
+                            </div>
+
+                            <h3 className="text-lg font-bold text-gray-900 mb-3">Financial Analytics</h3>
+                            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div><p className="text-xs text-gray-400 font-medium">TOTAL PAID (2026)</p><p className="text-2xl font-bold text-gray-900">৳ {selectedMember.totalYearly}</p></div>
+                                    <div className="text-right"><p className="text-xs text-gray-400 font-medium">DUE</p><p className="text-lg font-bold text-red-500">৳ {selectedMember.unpaid}</p></div>
+                                </div>
+                                <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mt-3">
+                                    <div className={`${currentTheme.primary} h-full rounded-full transition-all duration-500`} style={{width: `${Math.min(100, (selectedMember.totalYearly / selectedMember.expectedYearly) * 100 || 0)}%`}}></div>
+                                </div>
+                                <p className="text-[10px] text-gray-400 text-right mt-1">Expected: ৳{selectedMember.expectedYearly}</p>
+                            </div>
+
+                            {/* Monthly Tracking Grid */}
+                            <div className="flex items-center gap-2 mb-3 mt-6">
+                                <h3 className="text-lg font-bold text-gray-900"><i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা ট্র্যাকিং (২০২৬)</h3>
+                            </div>
+                            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
+                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                                    {months.map((month, idx) => {
+                                        const status = getMonthStatus(selectedMember, month);
+                                        const isPaid = status.status === 'paid';
+                                        return (
+                                            <div key={month} className="flex flex-col items-center">
+                                                <p className="text-[11px] font-semibold text-gray-500 mb-1.5">{monthLabels[idx]}</p>
+                                                <div className={`w-full h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-colors ${isPaid ? currentTheme.primary + ' text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}>
+                                                    {isPaid ? <span>{status.amount}</span> : <i className="fas fa-times text-sm opacity-50"></i>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <h3 className="text-lg font-bold text-gray-900 mb-3 mt-6">Personal Info</h3>
+                            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 space-y-4">
+                                {selectedMember.fatherName && <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500 text-sm">Father Name</span><span className="font-medium text-sm text-gray-800">{selectedMember.fatherName}</span></div>}
+                                {selectedMember.blood && <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500 text-sm">Blood Group</span><span className={`font-medium text-sm ${currentTheme.accent} ${currentTheme.bgLight} px-2 py-0.5 rounded`}>{selectedMember.blood}</span></div>}
+                                {selectedMember.occupation && <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500 text-sm">Occupation</span><span className="font-medium text-sm text-gray-800">{selectedMember.occupation}</span></div>}
+                                {selectedMember.address && <div className="flex justify-between"><span className="text-gray-500 text-sm">Address</span><span className="font-medium text-sm text-gray-800 text-right max-w-[60%]">{selectedMember.address}</span></div>}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="relative min-h-screen max-w-md mx-auto bg-[#f8f9fd] shadow-2xl overflow-hidden selection:bg-gray-200">
+                    {activeTab !== 'profile' && renderHeader(activeTab === 'home' ? 'Home' : 'Directory')}
 
                     {/* Join Form Modal */}
                     {showJoinForm && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-                            <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl flex flex-col h-[85vh]">
+                        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl animate-slide-up flex flex-col h-[85vh]">
                                 <div className={`p-4 flex justify-between items-center ${currentTheme.primary} text-white`}>
-                                    <h2 className="text-lg font-bold flex items-center gap-2"><i className="fas fa-user-plus"></i> সদস্যপদ আবেদন</h2>
-                                    <button onClick={() => setShowJoinForm(false)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
+                                    <h2 className="text-lg font-bold flex items-center gap-2">
+                                        <i className="fas fa-user-plus"></i> সদস্যপদ আবেদন
+                                    </h2>
+                                    <button onClick={() => setShowJoinForm(false)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
+                                        <i className="fas fa-times"></i>
+                                    </button>
                                 </div>
-                                <div className="w-full flex-1 overflow-hidden">
-                                    <iframe src={GOOGLE_FORM_URL + '?embedded=true'} width="100%" height="100%" className="w-full h-full border-none">লোড হচ্ছে...</iframe>
+                                <div className="w-full flex-1 overflow-hidden bg-[#f0ebf8]">
+                                    {GOOGLE_FORM_URL ? (
+                                        <iframe 
+                                            src={GOOGLE_FORM_URL.includes('?') ? GOOGLE_FORM_URL + '&embedded=true' : GOOGLE_FORM_URL + '?embedded=true'}
+                                            width="100%" 
+                                            height="100%" 
+                                            frameBorder="0" 
+                                            marginHeight="0" 
+                                            marginWidth="0"
+                                            className="w-full h-full border-none bg-transparent"
+                                        >
+                                            লোড হচ্ছে...
+                                        </iframe>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-center p-8 text-gray-500">
+                                            <p className="font-semibold text-gray-700">ফর্ম সেটআপ করা হয়নি</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Auth Modal */}
+                    {/* Auth Modal (PIN Code) */}
                     {showAuthModal && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-gray-900/60 backdrop-blur-sm">
-                            <div className="bg-white w-full max-w-xs rounded-[24px] p-6 shadow-2xl text-center">
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+                            <div className="bg-white w-full max-w-xs rounded-[24px] p-6 shadow-2xl animate-slide-up text-center">
                                 <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl ${currentTheme.bgLight} ${currentTheme.accent}`}><i className="fas fa-lock"></i></div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-2">পিন কোড দিন</h3>
-                                <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="****" className={`w-full text-center text-3xl tracking-[0.5em] font-bold py-3 rounded-xl border-2 mb-6 ${currentTheme.border}`} autoFocus maxLength="4" />
+                                <p className="text-sm text-gray-500 mb-6">তথ্য দেখতে আপনার চার ডিজিটের পিন কোডটি প্রবেশ করান।</p>
+                                <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="****" className={`w-full text-center text-3xl tracking-[0.5em] font-bold py-3 rounded-xl border-2 mb-6 focus:outline-none transition-colors ${currentTheme.border}`} autoFocus maxLength="4" />
                                 <div className="flex gap-3">
-                                    <button onClick={() => {setShowAuthModal(false); setPinInput('');}} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold">বাতিল</button>
-                                    <button onClick={handleAuthSubmit} className={`flex-1 py-3 rounded-xl text-white font-bold ${currentTheme.primary}`}>আনলক</button>
+                                    <button onClick={() => {setShowAuthModal(false); setPinInput('');}} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                    <button onClick={handleAuthSubmit} className={`flex-1 py-3 rounded-xl text-white font-bold transition-colors ${currentTheme.primary} ${currentTheme.hover}`}>আনলক</button>
                                 </div>
                             </div>
                         </div>
@@ -276,108 +503,63 @@
 
                     {/* Notice Modal */}
                     {showNotices && (
-                        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm p-4">
-                            <div className="bg-white w-full max-w-md mx-auto rounded-3xl max-h-[80vh] flex flex-col shadow-2xl">
+                        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm transition-all p-4">
+                            <div className="bg-white w-full max-w-md mx-auto rounded-t-3xl rounded-b-3xl max-h-[80vh] flex flex-col shadow-2xl animate-slide-up">
                                 <div className="flex justify-between items-center p-6 border-b border-gray-100">
                                     <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
-                                    <button onClick={() => setShowNotices(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
+                                    <button onClick={() => setShowNotices(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"><i className="fas fa-times"></i></button>
                                 </div>
-                                <div className="p-6 overflow-y-auto space-y-4">
-                                    {notices.map((notice) => (
+                                <div className="p-6 overflow-y-auto no-scrollbar space-y-4">
+                                    {notices.length > 0 ? notices.map((notice) => (
                                         <div key={notice.id} className="bg-[#f8f9fd] p-4 rounded-2xl border border-gray-100 flex gap-4">
+                                            <div className={`w-10 h-10 rounded-full ${currentTheme.bgLight} ${currentTheme.accent} flex-shrink-0 flex items-center justify-center mt-1`}><i className="fas fa-bell"></i></div>
                                             <div>
                                                 <h3 className="font-semibold text-gray-900">{notice.title}</h3>
-                                                <p className="text-sm text-gray-600 mt-1">{notice.message}</p>
-                                                <p className="text-xs text-gray-400 mt-2">{notice.date}</p>
+                                                <p className="text-sm text-gray-600 mt-1 leading-relaxed">{notice.message}</p>
+                                                <p className="text-xs text-gray-400 mt-2 font-medium">{notice.date}</p>
                                             </div>
                                         </div>
-                                    ))}
+                                    )) : <p className="text-center text-gray-500 py-10">No new notices</p>}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Main Content Area */}
-                    <div className="h-full overflow-y-auto no-scrollbar pb-28">
-                        {activeTab === 'home' && (
-                            <div className="p-6 pt-2">
-                                <h2 className="text-2xl font-bold text-gray-900">{greeting}</h2>
-                                <p className={`font-medium mt-1 ${currentTheme.accent}`}>বন্ধন-এ আপনাকে স্বাগতম!</p>
-                                
-                                <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 flex items-center justify-between my-6">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <p className="text-gray-500 text-sm font-medium">Total Collected Fund</p>
-                                            <button onClick={() => isAuthorized ? setIsAuthorized(false) : setShowAuthModal(true)} className={`w-6 h-6 rounded-full flex items-center justify-center ${isAuthorized ? 'bg-gray-100 text-gray-500' : currentTheme.bgLight + ' ' + currentTheme.accent}`}>
-                                                <i className={`fas ${isAuthorized ? 'fa-unlock-alt' : 'fa-lock'} text-xs`}></i>
-                                            </button>
-                                        </div>
-                                        <h2 className="text-3xl font-bold text-gray-900 mb-1">৳ {isAuthorized ? stats.totalCollected.toLocaleString() : '****'}</h2>
-                                    </div>
-                                    <div className="relative w-24 h-24 progress-circle" style={{ background: `conic-gradient(${currentTheme.hex} ${isAuthorized ? stats.percentage : 0}%, #e0e7ff 0deg)` }}>
-                                        <div className="relative z-10 flex flex-col items-center">
-                                            <span className="text-xl font-bold text-gray-800">{isAuthorized ? stats.percentage : '**'}%</span>
-                                        </div>
-                                    </div>
+                    {/* About Us Modal */}
+                    {showAboutUs && (
+                        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm transition-all p-4">
+                            <div className="bg-white w-full max-w-md mx-auto rounded-3xl max-h-[85vh] flex flex-col shadow-2xl animate-slide-up">
+                                <div className="flex justify-between items-center p-6 border-b border-gray-100">
+                                    <h2 className="text-xl font-bold text-gray-900">About Us</h2>
+                                    <button onClick={() => setShowAboutUs(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"><i className="fas fa-times"></i></button>
                                 </div>
-
-                                <div onClick={() => setShowAboutUs(true)} className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-50 mb-4 cursor-pointer">
-                                    <h4 className="font-semibold text-gray-800">About Us</h4>
-                                    <p className="text-xs text-gray-400 mt-1">Bondhan Info</p>
-                                </div>
-
-                                <div onClick={() => setShowJoinForm(true)} className={`bg-gradient-to-r ${currentTheme.gradient} text-white rounded-[20px] p-4 flex items-center justify-between cursor-pointer shadow-md`}>
-                                    <div>
-                                        <h4 className="font-bold">সদস্য হতে চান?</h4>
-                                        <p className="text-xs opacity-90">আবেদন করুন</p>
-                                    </div>
-                                    <i className="fas fa-chevron-right"></i>
+                                <div className="p-6 overflow-y-auto no-scrollbar">
+                                    <div className="whitespace-pre-wrap text-sm text-gray-600 leading-relaxed">{aboutUsText || 'Loading...'}</div>
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {activeTab === 'members' && (
-                            <div className="p-6 pt-2">
-                                <div className="relative mb-6">
-                                    <i className="fas fa-search absolute left-4 top-4 text-gray-400"></i>
-                                    <input type="text" placeholder="Search members, ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-white border border-gray-100 focus:outline-none" />
-                                </div>
-                                <div className="space-y-3">
-                                    {filteredMembers.map((member) => (
-                                        <div key={member.id} onClick={() => { setSelectedMemberId(member.id); setActiveTab('profile'); }} className="bg-white p-4 rounded-[20px] shadow-sm border border-gray-50 flex items-center gap-4 cursor-pointer">
-                                            <div className={`w-12 h-12 rounded-2xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-xl`}><i className="far fa-user"></i></div>
-                                            <div className="flex-1">
-                                                <h4 className="font-semibold text-gray-800">{member.name}</h4>
-                                                <p className="text-xs text-gray-500">{member.id}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xs font-semibold">৳ {member.totalYearly}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'profile' && selectedMember && (
-                            <div className="p-6">
-                                <button onClick={() => setActiveTab('members')} className="mb-4 px-4 py-2 bg-gray-200 rounded-xl text-sm font-semibold"><i className="fas fa-arrow-left mr-2"></i> Back</button>
-                                <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 text-center mb-6">
-                                    <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
-                                    <p className={`${currentTheme.accent} font-medium text-sm`}>{selectedMember.id}</p>
-                                    <p className="text-gray-500 text-sm mt-1">{selectedMember.mobile1}</p>
-                                </div>
-                            </div>
-                        )}
+                    {/* Content Area */}
+                    <div className="h-full overflow-y-auto no-scrollbar">
+                        {activeTab === 'home' && renderHome()}
+                        {activeTab === 'members' && renderMembers()}
+                        {activeTab === 'profile' && renderProfile()}
                     </div>
 
                     {/* Bottom Navigation */}
-                    <nav className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 flex justify-between px-12 py-3 z-40 rounded-t-3xl shadow-lg">
-                        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 ${activeTab === 'home' ? currentTheme.accent : 'text-gray-400'}`}>
-                            <i className="text-xl fas fa-home"></i><span className="text-[10px]">Home</span>
+                    <nav className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 flex justify-between px-8 py-3 pb-safe z-40 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+                        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 w-16 transition-colors ${activeTab === 'home' ? currentTheme.accent : 'text-gray-400 hover:text-gray-600'}`}>
+                            <i className={`text-xl ${activeTab === 'home' ? 'fas' : 'far'} fa-home`}></i>
+                            <span className="text-[10px] font-semibold">Home</span>
                         </button>
-                        <button onClick={() => setActiveTab('members')} className={`flex flex-col items-center gap-1 ${activeTab === 'members' || activeTab === 'profile' ? currentTheme.accent : 'text-gray-400'}`}>
-                            <i className="text-xl fas fa-folder"></i><span className="text-[10px]">Directory</span>
+                        <button onClick={() => setActiveTab('members')} className={`flex flex-col items-center gap-1 w-16 transition-colors ${activeTab === 'members' || activeTab === 'profile' ? currentTheme.accent : 'text-gray-400 hover:text-gray-600'}`}>
+                            <i className={`text-xl ${activeTab === 'members' || activeTab === 'profile' ? 'fas' : 'far'} fa-folder`}></i>
+                            <span className="text-[10px] font-semibold">Directory</span>
+                        </button>
+                        <button onClick={() => {fetchMembersFromSheets(); fetchNotices(); fetchAboutUs();}} className="flex flex-col items-center gap-1 w-16 text-gray-400 hover:text-gray-600 transition-colors active:scale-90">
+                            <i className={`text-xl fas fa-sync-alt ${syncStatus === 'Syncing...' ? `fa-spin ${currentTheme.accent}` : ''}`}></i>
+                            <span className="text-[10px] font-semibold">Refresh</span>
                         </button>
                     </nav>
                 </div>
