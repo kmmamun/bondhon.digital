@@ -6,14 +6,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#ffffff">
-    <meta name="description" content="বন্ধন - Home of Humanity Member Directory">
-    
-    <title>বন্ধন</title>
+    <title>বন্ধন - Home of Humanity</title>
     
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icon-192.png">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,39 +17,12 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
         * { box-sizing: border-box; }
-        html, body { 
-            margin: 0; padding: 0; 
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: #f8f9fd; 
-            color: #111827;
-        }
-
-        .progress-circle {
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .progress-circle::before {
-            content: "";
-            position: absolute;
-            inset: 12px;
-            background-color: white;
-            border-radius: 50%;
-        }
-
+        html, body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; background-color: #f8f9fd; color: #111827; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slideUp 0.4s ease forwards; }
-
-        /* Toast Animation */
         @keyframes toastSlideIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes toastSlideOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
         .toast-enter { animation: toastSlideIn 0.3s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -65,11 +33,9 @@
     <div id="root"></div>
 
     <script>
-        // Service Worker version updated to v4 to clear any stuck cache
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4')
-                    .catch(error => { console.log('SW Failed', error); });
+                navigator.serviceWorker.register('sw.js?v=5'); // Cache buster updated
             });
         }
     </script>
@@ -111,13 +77,11 @@
             const [theme, setTheme] = useState(localStorage.getItem('bondhanTheme') || 'green');
             const [greeting, setGreeting] = useState('');
             
-            // Authorization 
             const [isAuthorized, setIsAuthorized] = useState(false);
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [pinInput, setPinInput] = useState('');
             const SECRET_PIN = '1722'; 
             
-            // Edit Feature States
             const [showEditPinModal, setShowEditPinModal] = useState(false);
             const [editTarget, setEditTarget] = useState(null); 
             const [showProfileEditForm, setShowProfileEditForm] = useState(false);
@@ -135,31 +99,26 @@
             
             const [isUpdating, setIsUpdating] = useState(false);
             const [toast, setToast] = useState(null); 
-            
             const [showJoinForm, setShowJoinForm] = useState(false);
-
-            // =========================================================================
-            // লিংক কনফিগারেশন 
+            
             // =========================================================================
             const GOOGLE_FORM_URL = 'https://forms.gle/2K9AST9ALqRqybho7';
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiiAiB3SfB0xtw36fobz41Ce8R16BGNkFo9As7ocRUh0MORzP26s5mM0b8u0xmbdny/exec';
 
-            const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=429716275';
-            const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1626284683';
-            const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1116664985';
-            const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1943806316'; 
+            // CORS Bypass URLs using gviz
+            const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=429716275';
+            const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=1626284683';
+            const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=1116664985';
+            const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/gviz/tq?tqx=out:csv&gid=1943806316'; 
+            // =========================================================================
 
-            const themeStyles = {
-                green: { name: 'Green (Brand)', primary: 'bg-emerald-600', hover: 'hover:bg-emerald-700', accent: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-100', hex: '#059669', gradient: 'from-emerald-600 to-green-400' },
-                gray: { name: 'Gray (Roof)', primary: 'bg-slate-600', hover: 'hover:bg-slate-700', accent: 'text-slate-600', bgLight: 'bg-slate-100', border: 'border-slate-200', hex: '#475569', gradient: 'from-slate-600 to-gray-400' },
-                red: { name: 'Red (Figure)', primary: 'bg-rose-600', hover: 'hover:bg-rose-700', accent: 'text-rose-600', bgLight: 'bg-rose-50', border: 'border-rose-100', hex: '#e11d48', gradient: 'from-rose-600 to-pink-500' },
-                yellow: { name: 'Yellow (Figure)', primary: 'bg-amber-500', hover: 'hover:bg-amber-600', accent: 'text-amber-600', bgLight: 'bg-amber-50', border: 'border-amber-100', hex: '#f59e0b', gradient: 'from-amber-500 to-yellow-400' },
-                purple: { name: 'Purple (Figure)', primary: 'bg-fuchsia-600', hover: 'hover:bg-fuchsia-700', accent: 'text-fuchsia-600', bgLight: 'bg-fuchsia-50', border: 'border-fuchsia-100', hex: '#c026d3', gradient: 'from-fuchsia-600 to-purple-400' }
-            };
+            const themeStyles = { green: { primary: 'bg-emerald-600', hover: 'hover:bg-emerald-700', accent: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-100', hex: '#059669', gradient: 'from-emerald-600 to-green-400' } };
+            const currentTheme = themeStyles.green;
 
-            const currentTheme = themeStyles[theme] || themeStyles.green;
+            const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            const monthLabels = ['জান', 'ফেব', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'অগাস্ট', 'সেপ্ট', 'অক্টো', 'নভেম', 'ডিসে'];
 
-            useEffect(() => { localStorage.setItem('bondhanTheme', theme); }, [theme]);
+            const showToast = (message, type = 'success') => setToast({ message, type });
 
             useEffect(() => {
                 const hour = new Date().getHours();
@@ -170,20 +129,22 @@
                 fetchAllData();
             }, []);
 
-            const showToast = (message, type = 'success') => setToast({ message, type });
-
             const fetchAllData = () => {
                 fetchMembersFromSheets();
                 fetchNotices();
                 fetchAboutUs();
                 fetchExpenses();
-            };
+            }
+
+            // Checks if Google returned an HTML error page instead of CSV
+            const isValidCSV = (text) => !text.includes('<!DOCTYPE html>') && !text.includes('script>');
 
             const fetchExpenses = async () => {
                 try {
                     const response = await fetch(`${EXPENSE_SHEET_URL}&t=${new Date().getTime()}`);
-                    if(!response.ok) return;
                     const csvText = await response.text();
+                    if(!isValidCSV(csvText)) return;
+                    
                     const lines = csvText.split('\n');
                     const expList = [];
                     for (let i = 1; i < lines.length; i++) {
@@ -199,6 +160,10 @@
                 try {
                     const response = await fetch(`${ABOUT_US_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
+                    if(!isValidCSV(csvText)) {
+                        setAboutUsText("ডেটা লোড করা যাচ্ছে না। গুগল শিটটি 'Public' করা আছে কিনা চেক করুন।");
+                        return;
+                    }
                     const firstCommaIdx = csvText.indexOf(',');
                     if (firstCommaIdx !== -1) {
                         let text = csvText.substring(firstCommaIdx + 1).trim();
@@ -212,6 +177,8 @@
                 try {
                     const response = await fetch(`${NOTICE_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
+                    if(!isValidCSV(csvText)) return;
+                    
                     const lines = csvText.split('\n');
                     const noticesList = [];
                     for (let i = 1; i < lines.length; i++) {
@@ -229,6 +196,13 @@
                     setSyncStatus('Syncing...');
                     const response = await fetch(`${MEMBERS_SHEET_URL}&t=${new Date().getTime()}`);
                     const csvText = await response.text();
+                    
+                    if(!isValidCSV(csvText)) {
+                        setLoading(false); setSyncStatus('Failed');
+                        alert("Error: গুগল শিটটি 'Public' করা নেই! দয়া করে শিটের Share সেটিংসে গিয়ে 'Anyone with the link' করুন।");
+                        return;
+                    }
+
                     const lines = csvText.split('\n');
                     const members = [];
 
@@ -369,7 +343,7 @@
                         <div className="flex items-center gap-3">
                             <button onClick={() => setShowNotices(true)} className="relative p-2 rounded-full text-gray-500 hover:bg-gray-100 transition">
                                 <i className="far fa-bell text-xl"></i>
-                                {notices.length > 0 && <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>}
+                                {notices.length > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 border-2 border-white rounded-full text-[10px] text-white flex items-center justify-center font-bold">{notices.length}</span>}
                             </button>
                             <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center text-gray-500">
                                 <i className="fas fa-user-alt"></i>
@@ -393,7 +367,6 @@
                         <p className={`font-medium mt-1 ${currentTheme.accent}`}>বন্ধন-এ আপনাকে স্বাগতম!</p>
                     </div>
 
-                    {/* Classic Fund Info + New Balance View */}
                     <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 mb-6">
                         <div className="flex items-center justify-between mb-4">
                             <div>
@@ -414,7 +387,6 @@
                             </div>
                         </div>
 
-                        {/* Additional Financial Breakdown (Visible only when authorized) */}
                         {isAuthorized && (
                             <div className="pt-4 mt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
                                 <div className="bg-emerald-50 rounded-xl p-3">
@@ -475,7 +447,6 @@
                     <div className="relative mb-6 shadow-sm">
                         <i className="fas fa-search absolute left-4 top-4 text-gray-400"></i>
                         <input type="text" placeholder="Search members, ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-12 py-3.5 rounded-2xl bg-white border border-gray-100 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-200" />
-                        <i className="fas fa-microphone absolute right-4 top-4 text-gray-400"></i>
                     </div>
 
                     <div className="flex items-center justify-between mb-4">
@@ -542,7 +513,7 @@
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
                                 <div className="flex justify-between items-end mb-2">
                                     <div><p className="text-xs text-gray-400 font-medium">TOTAL PAID (2026)</p><p className="text-2xl font-bold text-gray-900">৳ {selectedMember.totalYearly}</p></div>
-                                    <div className="text-right"><p className="text-xs text-gray-400 font-medium">DUE</p><p className="text-lg font-bold text-red-500">৳ {selectedMember.unpaid}</p></div>
+                                    <div className="text-right"><p className="text-xs text-gray-400 font-medium">MONTHLY DUE</p><p className="text-lg font-bold text-red-500">৳ {selectedMember.unpaid}</p></div>
                                 </div>
                                 <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mt-3 mb-4">
                                     <div className={`${currentTheme.primary} h-full rounded-full transition-all duration-500`} style={{width: `${Math.min(100, (selectedMember.monthlyPaidTotal / selectedMember.expectedYearly) * 100 || 0)}%`}}></div>
