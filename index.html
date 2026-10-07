@@ -6,14 +6,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#ffffff">
-    <meta name="description" content="বন্ধন - Home of Humanity Member Directory">
-    
     <title>বন্ধন</title>
     
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icon-192.png">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,56 +17,18 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
         * { box-sizing: border-box; }
-        html, body { 
-            margin: 0; padding: 0; 
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: #f8f9fd; 
-            color: #111827;
-        }
-
-        .progress-circle {
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .progress-circle::before {
-            content: "";
-            position: absolute;
-            inset: 12px;
-            background-color: white;
-            border-radius: 50%;
-        }
-
+        html, body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; background-color: #f8f9fd; color: #111827; }
+        .progress-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .progress-circle::before { content: ""; position: absolute; inset: 12px; background-color: white; border-radius: 50%; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slideUp 0.4s ease forwards; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        console.log('Service Worker Registered Successfully', registration);
-                    })
-                    .catch(error => {
-                        console.log('Service Worker Registration Failed', error);
-                    });
-            });
-        }
-    </script>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
@@ -90,28 +47,28 @@
             const [theme, setTheme] = useState(localStorage.getItem('bondhanTheme') || 'green');
             const [greeting, setGreeting] = useState('');
             
-            // Authorization States (For Home Total Fund)
+            // Authorization 
             const [isAuthorized, setIsAuthorized] = useState(false);
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [pinInput, setPinInput] = useState('');
             const SECRET_PIN = '1722'; 
-
-            // Form Modal State
-            const [showJoinForm, setShowJoinForm] = useState(false);
-
+            
             // Edit Feature States
             const [showEditPinModal, setShowEditPinModal] = useState(false);
-            const [showEditForm, setShowEditForm] = useState(false);
+            const [editTarget, setEditTarget] = useState(null); // 'profile' or 'payment'
+            const [showProfileEditForm, setShowProfileEditForm] = useState(false);
+            const [showPaymentEditForm, setShowPaymentEditForm] = useState(false);
             const [editPinInput, setEditPinInput] = useState('');
             const [editData, setEditData] = useState({});
+            const [paymentData, setPaymentData] = useState({ month: '', amount: '' });
             const [isUpdating, setIsUpdating] = useState(false);
-
-            // ==========================================
-            // লিঙ্ক কনফিগারেশন
-            // ==========================================
-            const GOOGLE_FORM_URL = 'https://forms.gle/2K9AST9ALqRqybho7';
             
-            // এখানে আপনার Apps Script-এর Web App URL দিন
+            const [showJoinForm, setShowJoinForm] = useState(false);
+            const GOOGLE_FORM_URL = 'https://forms.gle/2K9AST9ALqRqybho7';
+
+            // =========================================================================
+            // নিচে আপনার Apps Script এর Web App URL টি দিন
+            // =========================================================================
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzU7OeSZMRgEC-WscE9q_Ef2Oqa0AiFrLQLe3SJjTV-ysAujzg78s4fkYIM03zM0rWi/exec';
 
             const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=2103360002';
@@ -119,16 +76,12 @@
             const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/10oBrU9CXoTRI5olNxcii9BUwP-72PNSL/export?format=csv&gid=1375885684';
 
             const themeStyles = {
-                green: { name: 'Green (Brand)', primary: 'bg-emerald-600', hover: 'hover:bg-emerald-700', accent: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-100', hex: '#059669', gradient: 'from-emerald-600 to-green-400' },
-                gray: { name: 'Gray (Roof)', primary: 'bg-slate-600', hover: 'hover:bg-slate-700', accent: 'text-slate-600', bgLight: 'bg-slate-100', border: 'border-slate-200', hex: '#475569', gradient: 'from-slate-600 to-gray-400' },
-                red: { name: 'Red (Figure)', primary: 'bg-rose-600', hover: 'hover:bg-rose-700', accent: 'text-rose-600', bgLight: 'bg-rose-50', border: 'border-rose-100', hex: '#e11d48', gradient: 'from-rose-600 to-pink-500' },
-                yellow: { name: 'Yellow (Figure)', primary: 'bg-amber-500', hover: 'hover:bg-amber-600', accent: 'text-amber-600', bgLight: 'bg-amber-50', border: 'border-amber-100', hex: '#f59e0b', gradient: 'from-amber-500 to-yellow-400' },
-                purple: { name: 'Purple (Figure)', primary: 'bg-fuchsia-600', hover: 'hover:bg-fuchsia-700', accent: 'text-fuchsia-600', bgLight: 'bg-fuchsia-50', border: 'border-fuchsia-100', hex: '#c026d3', gradient: 'from-fuchsia-600 to-purple-400' }
+                green: { primary: 'bg-emerald-600', hover: 'hover:bg-emerald-700', accent: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-100', hex: '#059669', gradient: 'from-emerald-600 to-green-400' }
             };
+            const currentTheme = themeStyles.green;
 
-            const currentTheme = themeStyles[theme] || themeStyles.green;
-
-            useEffect(() => { localStorage.setItem('bondhanTheme', theme); }, [theme]);
+            const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            const monthLabels = ['জান', 'ফেব', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'অগাস্ট', 'সেপ্ট', 'অক্টো', 'নভেম', 'ডিসে'];
 
             useEffect(() => {
                 const hour = new Date().getHours();
@@ -136,60 +89,11 @@
                 else if (hour >= 12 && hour < 17) setGreeting('শুভ অপরাহ্ন ☀️');
                 else if (hour >= 17 && hour < 20) setGreeting('শুভ সন্ধ্যা 🌇');
                 else setGreeting('শুভ রাত্রি 🌙');
+                fetchMembersFromSheets();
+                fetchNotices();
+                fetchAboutUs();
             }, []);
 
-            const handleAuthSubmit = () => {
-                if (pinInput === SECRET_PIN) {
-                    setIsAuthorized(true);
-                    setShowAuthModal(false);
-                    setPinInput('');
-                } else {
-                    alert('দুঃখিত, পিন কোডটি ভুল হয়েছে!');
-                    setPinInput('');
-                }
-            };
-
-            // Edit Pin Submission
-            const handleEditPinSubmit = () => {
-                if (editPinInput === SECRET_PIN) {
-                    setShowEditPinModal(false);
-                    setEditPinInput('');
-                    
-                    const sm = membersData.find(m => m.id === selectedMemberId);
-                    if(sm) {
-                        setEditData({ id: sm.id, name: sm.name, status: sm.status, mobile1: sm.mobile1 });
-                        setShowEditForm(true);
-                    }
-                } else {
-                    alert('পিন কোড ভুল হয়েছে!');
-                    setEditPinInput('');
-                }
-            };
-
-            // Handle Update POST Request
-            const submitUpdate = async () => {
-                setIsUpdating(true);
-                try {
-                    const res = await fetch(APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(editData),
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                    });
-                    const result = await res.json();
-                    if(result.status === 'success') {
-                        alert('ডেটা সফলভাবে আপডেট হয়েছে!');
-                        setShowEditForm(false);
-                        fetchMembersFromSheets(); // Refresh Data
-                    } else {
-                        alert('আপডেট ব্যর্থ হয়েছে: ' + result.message);
-                    }
-                } catch (e) {
-                    alert('নেটওয়ার্ক সমস্যা! আপনার স্ক্রিপ্ট লিংক ঠিক আছে কিনা চেক করুন।');
-                }
-                setIsUpdating(false);
-            };
-
-            // Fetch Functions
             const fetchAboutUs = async () => {
                 try {
                     const response = await fetch(ABOUT_US_SHEET_URL);
@@ -235,55 +139,22 @@
                         
                         if (cells[0] && cells[0].startsWith('BPM')) {
                             const monthlySubscription = parseFloat(cells[16]) || 0; 
-                            const paidAmounts = [
-                                parseFloat(cells[17])||0, parseFloat(cells[18])||0, parseFloat(cells[19])||0, 
-                                parseFloat(cells[20])||0, parseFloat(cells[21])||0, parseFloat(cells[22])||0, 
-                                parseFloat(cells[23])||0, parseFloat(cells[24])||0, parseFloat(cells[25])||0, 
-                                parseFloat(cells[26])||0, parseFloat(cells[27])||0, parseFloat(cells[28])||0  
-                            ];
-
+                            const paidAmounts = [parseFloat(cells[17])||0, parseFloat(cells[18])||0, parseFloat(cells[19])||0, parseFloat(cells[20])||0, parseFloat(cells[21])||0, parseFloat(cells[22])||0, parseFloat(cells[23])||0, parseFloat(cells[24])||0, parseFloat(cells[25])||0, parseFloat(cells[26])||0, parseFloat(cells[27])||0, parseFloat(cells[28])||0];
                             const totalYearly = paidAmounts.reduce((a, b) => a + b, 0); 
                             const expectedYearly = monthlySubscription * 12; 
-                            const unpaid = Math.max(0, expectedYearly - totalYearly); 
-
+                            
                             members.push({
-                                id: cells[0], 
-                                status: cells[1] || '', 
-                                name: cells[2] || '', 
-                                fatherName: cells[3] || '', 
-                                dob: cells[4] || '', 
-                                blood: cells[5] || '', 
-                                address: cells[6] || '', 
-                                occupation: cells[8] || '', 
-                                nid: cells[9] || '', 
-                                mobile1: cells[10] || '', 
-                                email: cells[12] || '', 
-                                monthlySubscription, 
-                                jan: cells[17] || '0', feb: cells[18] || '0', mar: cells[19] || '0', 
-                                apr: cells[20] || '0', may: cells[21] || '0', jun: cells[22] || '0', 
-                                jul: cells[23] || '0', aug: cells[24] || '0', sep: cells[25] || '0', 
-                                oct: cells[26] || '0', nov: cells[27] || '0', dec: cells[28] || '0', 
-                                totalYearly, unpaid, expectedYearly
+                                id: cells[0], status: cells[1] || '', name: cells[2] || '', fatherName: cells[3] || '', blood: cells[5] || '', address: cells[6] || '', occupation: cells[8] || '', mobile1: cells[10] || '', 
+                                jan: cells[17] || '0', feb: cells[18] || '0', mar: cells[19] || '0', apr: cells[20] || '0', may: cells[21] || '0', jun: cells[22] || '0', jul: cells[23] || '0', aug: cells[24] || '0', sep: cells[25] || '0', oct: cells[26] || '0', nov: cells[27] || '0', dec: cells[28] || '0', 
+                                totalYearly, expectedYearly, unpaid: Math.max(0, expectedYearly - totalYearly)
                             });
                         }
                     }
                     setMembersData(members);
                     setSyncStatus('Updated');
                     setLoading(false);
-                } catch (error) {
-                    console.error('Error fetching members:', error);
-                    setSyncStatus('Failed');
-                    setLoading(false);
-                }
+                } catch (error) { setLoading(false); }
             };
-
-            useEffect(() => {
-                fetchMembersFromSheets();
-                fetchNotices();
-                fetchAboutUs();
-                const interval = setInterval(fetchMembersFromSheets, 5 * 60 * 1000);
-                return () => clearInterval(interval);
-            }, []);
 
             const stats = useMemo(() => {
                 let totalExpected = 0;
@@ -303,15 +174,91 @@
 
             const selectedMember = membersData.find(m => m.id === selectedMemberId);
 
-            const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-            const monthLabels = ['জান', 'ফেব', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'অগাস্ট', 'সেপ্ট', 'অক্টো', 'নভেম', 'ডিসে'];
-
             const getMonthStatus = (member, month) => {
                 const value = parseFloat(member[month]);
                 if (!value || value === 0) {
                     return { status: 'unpaid', amount: null };
                 }
                 return { status: 'paid', amount: value };
+            };
+
+            const handleAuthSubmit = () => {
+                if (pinInput === SECRET_PIN) {
+                    setIsAuthorized(true);
+                    setShowAuthModal(false);
+                    setPinInput('');
+                } else {
+                    alert('দুঃখিত, পিন কোডটি ভুল হয়েছে!');
+                    setPinInput('');
+                }
+            };
+
+            // Handle Edit PIN Submit
+            const handleEditPinSubmit = () => {
+                if (editPinInput === SECRET_PIN) {
+                    setShowEditPinModal(false);
+                    setEditPinInput('');
+                    
+                    const sm = membersData.find(m => m.id === selectedMemberId);
+                    if(sm) {
+                        if (editTarget === 'profile') {
+                            setEditData({ id: sm.id, name: sm.name, status: sm.status, mobile1: sm.mobile1 });
+                            setShowProfileEditForm(true);
+                        } else if (editTarget === 'payment') {
+                            setPaymentData({ id: sm.id, month: 'jan', amount: '' });
+                            setShowPaymentEditForm(true);
+                        }
+                    }
+                } else {
+                    alert('পিন কোড ভুল হয়েছে!');
+                    setEditPinInput('');
+                }
+            };
+
+            // Handle Data Update POST Request (Profile)
+            const submitProfileUpdate = async () => {
+                setIsUpdating(true);
+                try {
+                    const res = await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({...editData, updateType: 'profile'}),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    });
+                    const result = await res.json();
+                    if(result.status === 'success') {
+                        alert('প্রোফাইল ডেটা সফলভাবে আপডেট হয়েছে!');
+                        setShowProfileEditForm(false);
+                        fetchMembersFromSheets(); 
+                    } else {
+                        alert('আপডেট ব্যর্থ হয়েছে: ' + result.message);
+                    }
+                } catch (e) {
+                    alert('নেটওয়ার্ক সমস্যা! স্ক্রিপ্ট লিংক ঠিক আছে কিনা চেক করুন।');
+                }
+                setIsUpdating(false);
+            };
+
+            // Handle Data Update POST Request (Payment)
+            const submitPaymentUpdate = async () => {
+                setIsUpdating(true);
+                try {
+                    const res = await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({...paymentData, updateType: 'payment'}),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    });
+                    const result = await res.json();
+                    if(result.status === 'success') {
+                        alert('মাসিক চাঁদা সফলভাবে আপডেট হয়েছে!');
+                        setShowPaymentEditForm(false);
+                        fetchMembersFromSheets(); 
+                    } else {
+                        alert('আপডেট ব্যর্থ হয়েছে: ' + result.message);
+                    }
+                } catch (e) {
+                    alert('নেটওয়ার্ক সমস্যা! স্ক্রিপ্ট লিংক ঠিক আছে কিনা চেক করুন।');
+                }
+                setIsUpdating(false);
             };
 
             if (loading && membersData.length === 0) {
@@ -406,7 +353,7 @@
                     <div className={`bg-gradient-to-br ${currentTheme.bgLight} to-white rounded-[24px] p-6 text-center border ${currentTheme.border}`}>
                         <div className={`w-12 h-12 ${currentTheme.primary} text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-md`}><i className="fas fa-users text-lg"></i></div>
                         <h3 className="text-xl font-bold text-gray-900 mb-1">Total Members</h3>
-                        <p className={`${currentTheme.accent} text-sm mb-4 font-medium`}>Currently {membersData.length} Members</p>
+                        <p className={`${currentTheme.accent} text-sm mb-4 font-medium`}>Currently {membersData.length} Active Members</p>
                         <button onClick={() => setActiveTab('members')} className={`${currentTheme.primary} ${currentTheme.hover} text-white w-full py-3 rounded-xl font-semibold shadow-md transition-colors`}>View Directory &rarr;</button>
                     </div>
                 </div>
@@ -457,30 +404,30 @@
                 if (!selectedMember) return null;
                 return (
                     <div className="animate-slide-up pb-28">
-                        <div className="bg-white px-6 py-4 flex items-center gap-3 border-b border-gray-100 sticky top-0 z-20">
-                            <button onClick={() => setActiveTab('members')} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-gray-100"><i className="fas fa-arrow-left"></i></button>
-                            <h2 className="font-semibold text-gray-900">Member Details</h2>
+                        <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 sticky top-0 z-20">
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setActiveTab('members')} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-gray-100"><i className="fas fa-arrow-left"></i></button>
+                                <h2 className="font-semibold text-gray-900">Member Details</h2>
+                            </div>
                         </div>
                         
                         <div className="p-6">
                             <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 text-center mb-6 relative overflow-hidden">
                                 <div className={`absolute top-0 left-0 w-full h-16 bg-gradient-to-r ${currentTheme.gradient} opacity-10`}></div>
                                 
-                                {/* Edit Pencil Button */}
-                                <button onClick={() => setShowEditPinModal(true)} className="absolute top-4 right-4 w-9 h-9 bg-white shadow-md rounded-full flex items-center justify-center text-gray-600 hover:text-emerald-600 transition-colors z-20">
+                                {/* Edit Profile Pencil Icon */}
+                                <button onClick={() => { setEditTarget('profile'); setShowEditPinModal(true); }} className="absolute top-4 right-4 w-9 h-9 bg-white shadow-md rounded-full flex items-center justify-center text-gray-600 hover:text-emerald-600 transition-colors z-20">
                                     <i className="fas fa-pencil-alt text-sm"></i>
                                 </button>
 
                                 <div className={`w-20 h-20 ${currentTheme.bgLight} ${currentTheme.accent} rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner z-10 relative mt-2`}><i className="fas fa-user"></i></div>
                                 
                                 <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
-                                
                                 {selectedMember.status && (
                                     <span className={`inline-block mt-2 mb-1 text-[11px] font-bold px-3 py-1 rounded-full ${selectedMember.status.toLowerCase() === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                         <i className={`fas ${selectedMember.status.toLowerCase() === 'active' ? 'fa-check-circle' : 'fa-times-circle'} mr-1`}></i> {selectedMember.status}
                                     </span>
                                 )}
-
                                 <p className={`${currentTheme.accent} font-medium text-sm mt-1`}>{selectedMember.id}</p>
                                 <p className="text-gray-500 text-sm mt-1">{selectedMember.mobile1}</p>
                             </div>
@@ -497,8 +444,12 @@
                                 <p className="text-[10px] text-gray-400 text-right mt-1">Expected: ৳{selectedMember.expectedYearly}</p>
                             </div>
 
-                            <div className="flex items-center gap-2 mb-3 mt-6">
+                            <div className="flex items-center justify-between mb-3 mt-6">
                                 <h3 className="text-lg font-bold text-gray-900"><i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা ট্র্যাকিং (২০২৬)</h3>
+                                {/* Edit Payment Pencil Icon */}
+                                <button onClick={() => { setEditTarget('payment'); setShowEditPinModal(true); }} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-emerald-600 transition-colors">
+                                    <i className="fas fa-pencil-alt text-xs"></i>
+                                </button>
                             </div>
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
                                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
@@ -531,34 +482,7 @@
 
             return (
                 <div className="relative min-h-screen max-w-md mx-auto bg-[#f8f9fd] shadow-2xl overflow-hidden selection:bg-gray-200">
-                    {activeTab !== 'profile' && renderHeader(activeTab === 'home' ? 'Home' : 'Directory')}
-
-                    {/* Join Form Modal */}
-                    {showJoinForm && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
-                            <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl animate-slide-up flex flex-col h-[85vh]">
-                                <div className={`p-4 flex justify-between items-center ${currentTheme.primary} text-white`}>
-                                    <h2 className="text-lg font-bold flex items-center gap-2">
-                                        <i className="fas fa-user-plus"></i> সদস্যপদ আবেদন
-                                    </h2>
-                                    <button onClick={() => setShowJoinForm(false)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-                                        <i className="fas fa-times"></i>
-                                    </button>
-                                </div>
-                                <div className="w-full flex-1 overflow-hidden bg-[#f0ebf8]">
-                                    {GOOGLE_FORM_URL ? (
-                                        <iframe 
-                                            src={GOOGLE_FORM_URL.includes('?') ? GOOGLE_FORM_URL + '&embedded=true' : GOOGLE_FORM_URL + '?embedded=true'}
-                                            width="100%" height="100%" frameBorder="0" className="w-full h-full border-none bg-transparent">
-                                        </iframe>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-full p-8 text-gray-500"><p>ফর্ম সেটআপ করা হয়নি</p></div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
+                    
                     {/* Auth Modal (Home Total Fund) */}
                     {showAuthModal && (
                         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-gray-900/60 backdrop-blur-sm transition-opacity">
@@ -591,8 +515,8 @@
                         </div>
                     )}
 
-                    {/* Edit Data Form Modal */}
-                    {showEditForm && (
+                    {/* Edit Profile Form Modal */}
+                    {showProfileEditForm && (
                         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
                             <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
                                 <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
@@ -618,8 +542,41 @@
                                 </div>
 
                                 <div className="flex gap-3 mt-8">
-                                    <button onClick={() => setShowEditForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
-                                    <button onClick={submitUpdate} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                    <button onClick={() => setShowProfileEditForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                    <button onClick={submitProfileUpdate} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                        {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'সেভ করুন'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Edit Payment Form Modal */}
+                    {showPaymentEditForm && (
+                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
+                                <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
+                                    <i className={`fas fa-calendar-alt ${currentTheme.accent}`}></i> চাঁদা আপডেট: {paymentData.id}
+                                </h2>
+                                
+                                <div className="space-y-4 text-left">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">মাস নির্বাচন করুন</label>
+                                        <select value={paymentData.month} onChange={(e) => setPaymentData({...paymentData, month: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                                            {months.map((m, i) => (
+                                                <option key={m} value={m}>{monthLabels[i]}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">চাঁদার পরিমাণ (৳)</label>
+                                        <input type="number" value={paymentData.amount} onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})} placeholder="যেমন: ২০০" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 mt-8">
+                                    <button onClick={() => setShowPaymentEditForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                    <button onClick={submitPaymentUpdate} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                         {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'সেভ করুন'}
                                     </button>
                                 </div>
@@ -666,8 +623,33 @@
                         </div>
                     )}
 
+                    {/* Join Form Modal */}
+                    {showJoinForm && (
+                        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl animate-slide-up flex flex-col h-[85vh]">
+                                <div className={`p-4 flex justify-between items-center ${currentTheme.primary} text-white`}>
+                                    <h2 className="text-lg font-bold flex items-center gap-2">
+                                        <i className="fas fa-user-plus"></i> সদস্যপদ আবেদন
+                                    </h2>
+                                    <button onClick={() => setShowJoinForm(false)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div className="w-full flex-1 overflow-hidden bg-[#f0ebf8]">
+                                    {GOOGLE_FORM_URL ? (
+                                        <iframe src={GOOGLE_FORM_URL.includes('?') ? GOOGLE_FORM_URL + '&embedded=true' : GOOGLE_FORM_URL + '?embedded=true'} width="100%" height="100%" frameBorder="0" className="w-full h-full border-none bg-transparent"></iframe>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full p-8 text-gray-500"><p>ফর্ম সেটআপ করা হয়নি</p></div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Content Area */}
                     <div className="h-full overflow-y-auto no-scrollbar">
+                        {activeTab === 'home' && renderHeader('Home')}
+                        {activeTab === 'members' && renderHeader('Directory')}
                         {activeTab === 'home' && renderHome()}
                         {activeTab === 'members' && renderMembers()}
                         {activeTab === 'profile' && renderProfile()}
