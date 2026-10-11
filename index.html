@@ -137,6 +137,7 @@
             // Data States
             const [membersData, setMembersData] = useState([]);
             const [expensesData, setExpensesData] = useState([]);
+            const [eventsData, setEventsData] = useState([]);
             const [notices, setNotices] = useState([]);
             const [aboutUsText, setAboutUsText] = useState(''); 
             
@@ -145,6 +146,8 @@
             const [showExpenseList, setShowExpenseList] = useState(false);
             const [showAboutUs, setShowAboutUs] = useState(false); 
             const [showJoinForm, setShowJoinForm] = useState(false);
+            const [showEvents, setShowEvents] = useState(false);
+            const [expandedEventId, setExpandedEventId] = useState(null);
             
             // UI States
             const [loading, setLoading] = useState(true);
@@ -162,11 +165,13 @@
             // Edit & Form Features
             const [showEditPinModal, setShowEditPinModal] = useState(false);
             const [editTarget, setEditTarget] = useState(null); 
+            const [deleteEventTarget, setDeleteEventTarget] = useState(null);
             const [showProfileEditForm, setShowProfileEditForm] = useState(false);
             const [showPaymentEditForm, setShowPaymentEditForm] = useState(false);
             const [showDonationEditForm, setShowDonationEditForm] = useState(false);
             const [showAddNoticeForm, setShowAddNoticeForm] = useState(false);
             const [showAddExpenseForm, setShowAddExpenseForm] = useState(false);
+            const [showAddEventForm, setShowAddEventForm] = useState(false);
             
             // Input States for Forms
             const [editPinInput, setEditPinInput] = useState('');
@@ -175,6 +180,7 @@
             const [donationData, setDonationData] = useState({ amount: '' });
             const [newNoticeData, setNewNoticeData] = useState({ title: '', message: '' });
             const [newExpenseData, setNewExpenseData] = useState({ purpose: '', amount: '' });
+            const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '', amount: '' });
             
             const [isUpdating, setIsUpdating] = useState(false);
             
@@ -189,6 +195,7 @@
             const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1980828362';
             const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1375885684';
             const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=429716275'; 
+            const EVENTS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1862330748';
             // =========================================================================
 
             const themeStyles = {
@@ -258,6 +265,7 @@
                 fetchNotices();
                 fetchAboutUs();
                 fetchExpenses();
+                fetchEvents();
             };
 
             const isValidCSV = (text) => {
@@ -325,6 +333,36 @@
                     setExpensesData(expList.reverse());
                 } catch (error) { 
                     console.error('Expense fetch error:', error); 
+                }
+            };
+
+            // Events শিট: A=Date, B=Program Name, C=Details, D=Expense (৳)
+            const fetchEvents = async () => {
+                try {
+                    const response = await fetch(`${EVENTS_SHEET_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
+                    if (!response.ok) return;
+
+                    const csvText = await response.text();
+                    if (!isValidCSV(csvText)) return;
+
+                    const rows = parseCSV(csvText);
+                    const evList = [];
+
+                    for (let i = 1; i < rows.length; i++) {
+                        const cells = rows[i];
+                        if (cells[2]) {
+                            evList.push({
+                                id: cells[0] || '',
+                                date: cells[1] || '',
+                                name: cells[2],
+                                details: cells[3] || '',
+                                expense: parseFloat(cells[4]) || 0
+                            });
+                        }
+                    }
+                    setEventsData(evList.reverse());
+                } catch (error) {
+                    console.error('Events fetch error:', error);
                 }
             };
 
@@ -466,6 +504,7 @@
                 let totalExpected = 0; 
                 let totalIncome = 0; 
                 let totalExpenseAmt = 0;
+                let totalEventExpense = 0;
                 
                 membersData.forEach(m => { 
                     totalExpected += m.expectedYearly; 
@@ -475,18 +514,25 @@
                 expensesData.forEach(e => { 
                     totalExpenseAmt += e.amount; 
                 });
+
+                eventsData.forEach(ev => {
+                    totalEventExpense += ev.expense;
+                });
                 
-                const currentBalance = totalIncome - totalExpenseAmt;
+                const totalAllExpense = totalExpenseAmt + totalEventExpense;
+                const currentBalance = totalIncome - totalAllExpense;
                 const percentage = totalExpected > 0 ? Math.round((totalIncome / totalExpected) * 100) : 0;
                 
                 return { 
                     totalExpected, 
                     totalIncome, 
                     totalExpenseAmt, 
+                    totalEventExpense,
+                    totalAllExpense,
                     currentBalance, 
                     percentage 
                 };
-            }, [membersData, expensesData]);
+            }, [membersData, expensesData, eventsData]);
 
             const filteredMembers = useMemo(() => {
                 return membersData.filter(member => 
@@ -532,6 +578,14 @@
                     } else if (editTarget === 'add_expense') {
                         setNewExpenseData({ purpose: '', amount: '' }); 
                         setShowAddExpenseForm(true);
+                    } else if (editTarget === 'add_event') {
+                        setNewEventData({ date: '', name: '', details: '', amount: '' });
+                        setShowAddEventForm(true);
+                    } else if (editTarget === 'delete_event') {
+                        if (deleteEventTarget) {
+                            performUpdate({ id: deleteEventTarget.id, updateType: 'delete_event' }, 'প্রোগ্রাম মুছে ফেলা হয়েছে!');
+                        }
+                        setDeleteEventTarget(null);
                     } else {
                         const sm = membersData.find(m => m.id === selectedMemberId);
                         if(sm) {
@@ -570,6 +624,7 @@
                         setShowDonationEditForm(false); 
                         setShowAddNoticeForm(false); 
                         setShowAddExpenseForm(false);
+                        setShowAddEventForm(false);
                         
                         setTimeout(fetchAllData, 3000); 
                     } else { 
@@ -677,7 +732,7 @@
                                         মোট খরচ <i className="fas fa-chevron-right text-[10px] ml-1 opacity-50"></i>
                                     </p>
                                     <h3 className="text-xl font-bold text-red-700">
-                                        ৳ {stats.totalExpenseAmt.toLocaleString()}
+                                        ৳ {stats.totalAllExpense.toLocaleString()}
                                     </h3>
                                 </div>
                             </div>
@@ -701,6 +756,13 @@
                             >
                                 <i className="fas fa-minus-circle text-sm"></i>
                             </button>
+                            <button 
+                                onClick={() => { setEditTarget('add_event'); setShowEditPinModal(true); }} 
+                                className={`w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm`} 
+                                title="নতুন প্রোগ্রাম যোগ করুন"
+                            >
+                                <i className="fas fa-calendar-plus text-sm"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -719,6 +781,17 @@
                             <h4 className="font-semibold text-gray-800">Gallery</h4>
                             <p className="text-xs text-gray-400 mt-1">Event Photos</p>
                         </a>
+                    </div>
+
+                    <div onClick={() => { setExpandedEventId(null); setShowEvents(true); }} className="mb-4 bg-white rounded-[20px] p-4 shadow-sm border border-gray-50 cursor-pointer hover:shadow-md transition-shadow flex items-center gap-4">
+                        <div className={`w-11 h-11 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-lg flex-shrink-0`}>
+                            <i className="fas fa-calendar-check"></i>
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-semibold text-gray-800">Events</h4>
+                            <p className="text-xs text-gray-400 mt-0.5">আমাদের কার্যক্রম ও প্রোগ্রামসমূহ</p>
+                        </div>
+                        <i className="fas fa-chevron-right text-gray-300"></i>
                     </div>
                     
                     <div onClick={() => setShowJoinForm(true)} className={`mb-8 bg-gradient-to-r ${currentTheme.gradient} text-white rounded-[20px] p-4 flex items-center justify-between cursor-pointer shadow-md hover:shadow-lg transition-all`}>
@@ -1139,6 +1212,40 @@
                         </div>
                     )}
 
+                    {showAddEventForm && (
+                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto no-scrollbar">
+                                <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
+                                    <i className="fas fa-calendar-plus text-blue-500"></i> নতুন প্রোগ্রাম যোগ করুন
+                                </h2>
+                                <div className="space-y-4 text-left">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">প্রোগ্রামের নাম (Name)</label>
+                                        <input type="text" value={newEventData.name} onChange={(e) => setNewEventData({...newEventData, name: e.target.value})} placeholder="যেমন: বৃক্ষরোপণ কর্মসূচি" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">তারিখ (Date) — ফাঁকা রাখলে আজকের তারিখ বসবে</label>
+                                        <input type="text" value={newEventData.date} onChange={(e) => setNewEventData({...newEventData, date: e.target.value})} placeholder="যেমন: 15-Oct-26" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">বিস্তারিত (Details)</label>
+                                        <textarea rows="4" value={newEventData.details} onChange={(e) => setNewEventData({...newEventData, details: e.target.value})} placeholder="প্রোগ্রামের সম্পূর্ণ বিবরণ লিখুন..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">খরচ (৳) — মাস্টার অ্যাকাউন্ট থেকে কাটা হবে</label>
+                                        <input type="number" value={newEventData.amount} onChange={(e) => setNewEventData({...newEventData, amount: e.target.value})} placeholder="যেমন: ২০০০ (না থাকলে ফাঁকা রাখুন)" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-8">
+                                    <button onClick={() => setShowAddEventForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                    <button onClick={() => performUpdate({...newEventData, updateType: 'add_event'}, 'নতুন প্রোগ্রাম যুক্ত হয়েছে!')} disabled={isUpdating || !newEventData.name} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${(isUpdating || !newEventData.name) ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                        {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'যোগ করুন'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Content Viewing Modals */}
                     {showExpenseList && (
                         <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm transition-all p-4">
@@ -1162,6 +1269,64 @@
                                         <div className="text-center text-gray-500 py-10">
                                             <i className="fas fa-receipt text-4xl mb-3 opacity-30"></i>
                                             <p>কোনো খরচের রেকর্ড নেই</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showEvents && (
+                        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm transition-all p-4">
+                            <div className="bg-white w-full max-w-md mx-auto rounded-3xl max-h-[85vh] flex flex-col shadow-2xl animate-slide-up">
+                                <div className="flex justify-between items-center p-6 border-b border-gray-100">
+                                    <h2 className="text-xl font-bold text-gray-900">আমাদের কার্যক্রম</h2>
+                                    <button onClick={() => setShowEvents(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div className="p-6 overflow-y-auto space-y-3 flex-1 no-scrollbar">
+                                    {eventsData.length > 0 ? eventsData.map((ev, idx) => (
+                                        <div key={idx} className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                                            <div
+                                                onClick={() => setExpandedEventId(expandedEventId === idx ? null : idx)}
+                                                className="p-4 flex justify-between items-center cursor-pointer"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-9 h-9 rounded-full ${currentTheme.bgLight} ${currentTheme.accent} flex-shrink-0 flex items-center justify-center`}>
+                                                        <i className="fas fa-bullseye text-sm"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-gray-800">{ev.name}</p>
+                                                        {ev.date && <p className="text-xs text-gray-500 mt-0.5"><i className="far fa-calendar-alt mr-1"></i>{ev.date}</p>}
+                                                    </div>
+                                                </div>
+                                                <i className={`fas fa-chevron-down text-xs text-gray-400 transition-transform ${expandedEventId === idx ? 'rotate-180' : ''}`}></i>
+                                            </div>
+                                            {expandedEventId === idx && (
+                                                <div className="px-4 pb-4 pt-1 border-t border-gray-100">
+                                                    {ev.details && <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap mb-3">{ev.details}</p>}
+                                                    {ev.expense > 0 && (
+                                                        <div className="flex justify-between items-center bg-red-50 rounded-lg px-3 py-2 mb-3">
+                                                            <span className="text-xs font-semibold text-red-600">প্রোগ্রাম খরচ</span>
+                                                            <span className="font-bold text-red-600">- ৳{ev.expense.toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {isAuthorized && (
+                                                        <button
+                                                            onClick={() => { setDeleteEventTarget(ev); setEditTarget('delete_event'); setShowEditPinModal(true); }}
+                                                            className="w-full py-2 rounded-lg bg-gray-100 text-gray-500 text-xs font-semibold hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center gap-1.5"
+                                                        >
+                                                            <i className="fas fa-trash-alt"></i> প্রোগ্রাম মুছুন
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )) : (
+                                        <div className="text-center text-gray-500 py-10">
+                                            <i className="fas fa-calendar-check text-4xl mb-3 opacity-30"></i>
+                                            <p>এখনো কোনো প্রোগ্রাম যোগ করা হয়নি</p>
                                         </div>
                                     )}
                                 </div>
