@@ -179,7 +179,7 @@
             const [paymentData, setPaymentData] = useState({ month: '', amount: '' });
             const [donationData, setDonationData] = useState({ amount: '' });
             const [newNoticeData, setNewNoticeData] = useState({ title: '', message: '' });
-            const [newExpenseData, setNewExpenseData] = useState({ purpose: '', amount: '' });
+            const [newExpenseData, setNewExpenseData] = useState({ purpose: '', customPurpose: '', amount: '' });
             const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '', amount: '' });
             
             const [isUpdating, setIsUpdating] = useState(false);
@@ -576,7 +576,7 @@
                         setNewNoticeData({ title: '', message: '' }); 
                         setShowAddNoticeForm(true);
                     } else if (editTarget === 'add_expense') {
-                        setNewExpenseData({ purpose: '', amount: '' }); 
+                        setNewExpenseData({ purpose: '', customPurpose: '', amount: '' }); 
                         setShowAddExpenseForm(true);
                     } else if (editTarget === 'add_event') {
                         setNewEventData({ date: '', name: '', details: '', amount: '' });
@@ -605,6 +605,15 @@
                     showToast('পিন কোড ভুল হয়েছে!', 'error'); 
                     setEditPinInput(''); 
                 }
+            };
+
+            const submitExpense = () => {
+                const finalPurpose = newExpenseData.purpose === '__others__'
+                    ? (newExpenseData.customPurpose || '').trim()
+                    : newExpenseData.purpose;
+                if (!finalPurpose) { showToast('খরচের খাত নির্বাচন করুন বা লিখুন!', 'error'); return; }
+                if (!newExpenseData.amount || Number(newExpenseData.amount) <= 0) { showToast('টাকার পরিমাণ লিখুন!', 'error'); return; }
+                performUpdate({ purpose: finalPurpose, amount: newExpenseData.amount, updateType: 'add_expense' }, 'খরচ সফলভাবে যুক্ত হয়েছে!');
             };
 
             const performUpdate = async (payload, successMsg) => {
@@ -1195,7 +1204,7 @@
                                 <div className="space-y-4 text-left">
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">খরচের খাত (Purpose)</label>
-                                        <input type="text" value={newExpenseData.purpose} onChange={(e) => setNewExpenseData({...newExpenseData, purpose: e.target.value})} placeholder="যেমন: ব্যানার প্রিন্ট, আপ্যায়ন..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                        <select value={newExpenseData.purpose} onChange={(e) => setNewExpenseData({...newExpenseData, purpose: e.target.value, customPurpose: ''})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"><option value="">-- খাত নির্বাচন করুন --</option>{[...new Set(eventsData.map(ev => ev.name))].map((name, i) => (<option key={i} value={name}>{name}</option>))}<option value="__others__">Others (অন্যান্য)</option></select>{newExpenseData.purpose === '__others__' && (<input type="text" value={newExpenseData.customPurpose} onChange={(e) => setNewExpenseData({...newExpenseData, customPurpose: e.target.value})} placeholder="যেমন: ব্যানার প্রিন্ট, আপ্যায়ন..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors mt-2" />)}
                                     </div>
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">টাকার পরিমাণ (৳)</label>
@@ -1204,7 +1213,7 @@
                                 </div>
                                 <div className="flex gap-3 mt-8">
                                     <button onClick={() => setShowAddExpenseForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
-                                    <button onClick={() => performUpdate({...newExpenseData, updateType: 'add_expense'}, 'খরচ সফলভাবে যুক্ত হয়েছে!')} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors bg-red-500 hover:bg-red-600 ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                    <button onClick={() => submitExpense()} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors bg-red-500 hover:bg-red-600 ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                         {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'খরচ যোগ করুন'}
                                     </button>
                                 </div>
