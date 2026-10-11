@@ -109,6 +109,20 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
+        // ===== বছরভিত্তিক সদস্য ট্যাব =====
+        // প্রতি বছরের জন্য Google Sheet ট্যাবের gid এখানে বসান। gid ফাঁকা থাকলে সেই বছর অ্যাপে দেখাবে না।
+        // নতুন বছরের জন্য: পুরনো ট্যাব কপি করে মাসের ঘর ফাঁকা করুন, ট্যাবের নাম দিন "Member Info-Apps 2027",
+        // তারপর ট্যাবের URL-এর gid=XXXX অংশটি নিচে বসান।
+        const SHEET_FILE_EXPORT = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=';
+        const YEAR_SHEETS = {
+            2026: '2103360002',
+            2027: '122218516'
+        };
+        const YEARS = Object.keys(YEAR_SHEETS).filter(y => YEAR_SHEETS[y]).map(Number).sort((a, b) => a - b);
+        const memberSheetUrl = (year) => SHEET_FILE_EXPORT + YEAR_SHEETS[year];
+        const EMPTY_LIST = [];
+        const toBn = (n) => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
+
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => {
                 const timer = setTimeout(onClose, 3000);
@@ -135,7 +149,16 @@
             const [searchTerm, setSearchTerm] = useState('');
             
             // Data States
-            const [membersData, setMembersData] = useState([]);
+            const [yearData, setYearData] = useState({});
+            const [selectedYear, setSelectedYear] = useState(() => {
+                const cy = new Date().getFullYear();
+                return YEARS.includes(cy) ? cy : YEARS[YEARS.length - 1];
+            });
+            const membersData = yearData[selectedYear] || EMPTY_LIST;
+            const setMembersData = (updater) => setYearData(prev => ({
+                ...prev,
+                [selectedYear]: typeof updater === 'function' ? updater(prev[selectedYear] || []) : updater
+            }));
             const [expensesData, setExpensesData] = useState([]);
             const [eventsData, setEventsData] = useState([]);
             const [notices, setNotices] = useState([]);
@@ -177,6 +200,8 @@
             const [editPinInput, setEditPinInput] = useState('');
             const [editData, setEditData] = useState({});
             const [paymentData, setPaymentData] = useState({ month: '', amount: '' });
+            const [isEditingMonths, setIsEditingMonths] = useState(false);
+            const [monthEdits, setMonthEdits] = useState({});
             const [donationData, setDonationData] = useState({ amount: '' });
             const [newNoticeData, setNewNoticeData] = useState({ title: '', message: '' });
             const [newExpenseData, setNewExpenseData] = useState({ purpose: '', customPurpose: '', amount: '' });
@@ -191,7 +216,6 @@
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiiAiB3SfB0xtw36fobz41Ce8R16BGNkFo9As7ocRUh0MORzP26s5mM0b8u0xmbdny/exec';
 
             // সব ট্যাব এখন একই ফাইল থেকে (2026 Bondhon Member Directory-Updated)
-            const MEMBERS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=2103360002';
             const NOTICE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1980828362';
             const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1375885684';
             const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=429716275'; 
@@ -413,10 +437,10 @@
                 } catch (error) {}
             };
 
-            const fetchMembersFromSheets = async (silent = false) => {
+            const fetchYearMembers = async (year, silent = false) => {
                 try {
                     setSyncStatus('Syncing...');
-                    const response = await fetch(`${MEMBERS_SHEET_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
+                    const response = await fetch(`${memberSheetUrl(year)}&t=${new Date().getTime()}`, { cache: 'no-store' });
                     const csvText = await response.text();
                     
                     if(!isValidCSV(csvText)) {
@@ -488,9 +512,7 @@
                         }
                     }
                     
-                    setMembersData(members);
-                    
-                    setSelectedMemberId(prev => (prev && !members.find(m => m.id === prev)) ? null : prev);
+                    setYearData(prev => ({ ...prev, [year]: members }));
                     
                     setSyncStatus('Updated'); 
                     setLoading(false);
@@ -500,16 +522,22 @@
                 }
             };
 
+            const fetchMembersFromSheets = async (silent = false) => {
+                await Promise.all(YEARS.map((y, idx) => fetchYearMembers(y, silent || idx > 0)));
+            };
+
             const stats = useMemo(() => {
                 let totalExpected = 0; 
                 let totalIncome = 0; 
                 let totalExpenseAmt = 0;
                 let totalEventExpense = 0;
                 
+                let yearIncome = 0;
                 membersData.forEach(m => { 
                     totalExpected += m.expectedYearly; 
-                    totalIncome += m.totalYearly; 
+                    yearIncome += m.totalYearly; 
                 });
+                Object.values(yearData).forEach(list => list.forEach(m => { totalIncome += m.totalYearly; }));
                 
                 expensesData.forEach(e => { 
                     totalExpenseAmt += e.amount; 
@@ -521,7 +549,7 @@
                 
                 const totalAllExpense = totalExpenseAmt + totalEventExpense;
                 const currentBalance = totalIncome - totalAllExpense;
-                const percentage = totalExpected > 0 ? Math.round((totalIncome / totalExpected) * 100) : 0;
+                const percentage = totalExpected > 0 ? Math.round((yearIncome / totalExpected) * 100) : 0;
                 
                 return { 
                     totalExpected, 
@@ -532,7 +560,7 @@
                     currentBalance, 
                     percentage 
                 };
-            }, [membersData, expensesData, eventsData]);
+            }, [membersData, yearData, expensesData, eventsData]);
 
             const filteredMembers = useMemo(() => {
                 return membersData.filter(member => 
@@ -544,8 +572,24 @@
 
             const selectedMember = membersData.find(m => m.id === selectedMemberId);
 
+            useEffect(() => { setIsEditingMonths(false); }, [selectedMemberId, activeTab, selectedYear]);
+
+            useEffect(() => {
+                if (selectedMemberId && membersData.length > 0 && !membersData.find(m => m.id === selectedMemberId)) {
+                    setSelectedMemberId(null);
+                }
+            }, [membersData, selectedMemberId]);
+
             const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
             const monthLabels = ['জান', 'ফেব', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'অগাস্ট', 'সেপ্ট', 'অক্টো', 'নভেম', 'ডিসে'];
+
+            const getStatusInfo = (raw) => {
+                const v = (raw || '').toString().trim().toUpperCase();
+                if (v === 'PM' || v.startsWith('PERMANENT')) return { key: 'pm', label: 'PM', full: 'Permanent Member', icon: 'fa-crown', avatar: 'bg-amber-50 text-amber-500', badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' };
+                if (v === 'INACTIVE') return { key: 'inactive', label: 'Inactive', full: 'Inactive', icon: 'fa-user-slash', avatar: 'bg-red-50 text-red-400', badge: 'bg-red-100 text-red-700', dot: 'bg-red-400' };
+                if (v === 'ACTIVE' || v === 'AVTIVE') return { key: 'active', label: 'Active', full: 'Active', icon: 'fa-user-check', avatar: 'bg-green-50 text-green-600', badge: 'bg-green-100 text-green-700', dot: 'bg-green-500' };
+                return { key: 'unknown', label: raw || '', full: raw || '', icon: 'fa-user', avatar: '', badge: 'bg-gray-100 text-gray-600', dot: 'bg-gray-300' };
+            };
 
             const getMonthStatus = (member, month) => {
                 const value = parseFloat(member[month]);
@@ -590,11 +634,10 @@
                         const sm = membersData.find(m => m.id === selectedMemberId);
                         if(sm) {
                             if (editTarget === 'profile') {
-                                setEditData({ id: sm.id, name: sm.name, status: sm.status, mobile1: sm.mobile1 }); 
+                                setEditData({ id: sm.id, name: sm.name, status: getStatusInfo(sm.status).label || 'Active', mobile1: sm.mobile1 }); 
                                 setShowProfileEditForm(true);
                             } else if (editTarget === 'payment') {
-                                setPaymentData({ id: sm.id, month: 'jan', amount: '' }); 
-                                setShowPaymentEditForm(true);
+                                const init = {}; months.forEach(mo => { init[mo] = parseFloat(sm[mo]) > 0 ? String(parseFloat(sm[mo])) : ''; }); setMonthEdits(init); setIsEditingMonths(true);
                             } else if (editTarget === 'donation') {
                                 setDonationData({ id: sm.id, amount: sm.donation || '' }); 
                                 setShowDonationEditForm(true);
@@ -616,18 +659,50 @@
                 performUpdate({ purpose: finalPurpose, amount: newExpenseData.amount, updateType: 'add_expense' }, 'খরচ সফলভাবে যুক্ত হয়েছে!');
             };
 
+            const saveMonthEdits = async () => {
+                if (!selectedMember) return;
+                const changes = {};
+                months.forEach(mo => {
+                    const oldVal = parseFloat(selectedMember[mo]) || 0;
+                    const raw = (monthEdits[mo] ?? '').toString().trim();
+                    const newVal = raw === '' ? 0 : Number(raw);
+                    if (isNaN(newVal) || newVal < 0) return;
+                    if (newVal !== oldVal) changes[mo] = newVal;
+                });
+                if (Object.keys(changes).length === 0) {
+                    showToast('কোনো পরিবর্তন করা হয়নি');
+                    setIsEditingMonths(false);
+                    return;
+                }
+                const ok = await performUpdate({ id: selectedMember.id, updateType: 'payment_bulk', payments: changes }, 'মাসিক চাঁদা আপডেট হয়েছে!');
+                if (ok) {
+                    setIsEditingMonths(false);
+                    setMembersData(prev => prev.map(m => {
+                        if (m.id !== selectedMember.id) return m;
+                        const u = { ...m };
+                        Object.keys(changes).forEach(k => { u[k] = String(changes[k]); });
+                        const paid = months.reduce((a, k) => a + (parseFloat(u[k]) || 0), 0);
+                        u.monthlyPaidTotal = paid;
+                        u.totalYearly = paid + (u.donation || 0);
+                        u.unpaid = Math.max(0, u.expectedYearly - paid);
+                        return u;
+                    }));
+                }
+            };
+
             const performUpdate = async (payload, successMsg) => {
+                let ok = false;
                 setIsUpdating(true);
                 try {
                     const res = await fetch(APPS_SCRIPT_URL, { 
                         method: 'POST', 
-                        body: JSON.stringify(payload), 
+                        body: JSON.stringify({ year: selectedYear, ...payload }), 
                         headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
                     });
                     const result = await res.json();
                     
                     if(result.status === 'success') {
-                        showToast(successMsg);
+                        showToast(successMsg); ok = true;
                         setShowProfileEditForm(false); 
                         setShowPaymentEditForm(false); 
                         setShowDonationEditForm(false); 
@@ -643,6 +718,7 @@
                     showToast('নেটওয়ার্ক সমস্যা! ইন্টারনেট সংযোগ পরীক্ষা করুন।', 'error'); 
                 }
                 setIsUpdating(false);
+                return ok;
             };
 
             if (loading && membersData.length === 0) {
@@ -692,6 +768,15 @@
                 </div>
             );
 
+            const renderYearSwitcher = () => YEARS.length > 1 ? (
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xs font-semibold text-gray-400"><i className="far fa-calendar-alt mr-1"></i>বছর</span>
+                    {YEARS.map(y => (
+                        <button key={y} onClick={() => setSelectedYear(y)} className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${y === selectedYear ? currentTheme.primary + ' text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>{y}</button>
+                    ))}
+                </div>
+            ) : null;
+
             const renderHome = () => (
                 <div className="p-6 pt-2 animate-slide-up pb-28">
                     <div className="mb-6 mt-2">
@@ -699,6 +784,7 @@
                         <p className={`font-medium mt-1 ${currentTheme.accent}`}>বন্ধন-এ আপনাকে স্বাগতম!</p>
                     </div>
 
+                    {renderYearSwitcher()}
                     <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 mb-6">
                         <div className="flex items-center justify-between mb-4">
                             <div>
@@ -715,7 +801,7 @@
                                     ৳ {isAuthorized ? stats.totalIncome.toLocaleString() : '****'}
                                 </h2>
                                 <p className="text-gray-400 text-sm">
-                                    Target: ৳ {isAuthorized ? stats.totalExpected.toLocaleString() : '****'}
+                                    Target ({selectedYear}): ৳ {isAuthorized ? stats.totalExpected.toLocaleString() : '****'}
                                 </p>
                             </div>
                             <div className="relative w-24 h-24 progress-circle" style={{ background: `conic-gradient(${currentTheme.hex} ${isAuthorized ? stats.percentage : 0}%, #e0e7ff 0deg)` }}>
@@ -854,6 +940,7 @@
                         </div>
                     </div>
 
+                    {renderYearSwitcher()}
                     <div className="space-y-3">
                         {filteredMembers.map((member) => (
                             <div 
@@ -861,10 +948,10 @@
                                 onClick={() => { setSelectedMemberId(member.id); setActiveTab('profile'); }} 
                                 className="bg-white p-4 rounded-[20px] shadow-sm border border-gray-50 flex items-center gap-4 cursor-pointer hover:shadow-md active:scale-[0.98] transition-all"
                             >
-                                <div className={`w-12 h-12 rounded-2xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-xl relative`}>
-                                    <i className="far fa-user"></i>
+                                <div className={`w-12 h-12 rounded-2xl ${getStatusInfo(member.status).avatar || `${currentTheme.bgLight} ${currentTheme.accent}`} flex items-center justify-center text-xl relative`}>
+                                    <i className={`fas ${getStatusInfo(member.status).icon}`}></i>
                                     {member.status && (
-                                        <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${member.status.toLowerCase() === 'active' ? 'bg-green-500' : 'bg-red-400'}`}></div>
+                                        <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${getStatusInfo(member.status).dot}`}></div>
                                     )}
                                 </div>
                                 <div className="flex-1">
@@ -913,26 +1000,27 @@
                                     <i className="fas fa-pencil-alt text-sm"></i>
                                 </button>
 
-                                <div className={`w-20 h-20 ${currentTheme.bgLight} ${currentTheme.accent} rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner z-10 relative mt-2`}>
-                                    <i className="fas fa-user"></i>
+                                <div className={`w-20 h-20 ${getStatusInfo(selectedMember.status).avatar || `${currentTheme.bgLight} ${currentTheme.accent}`} rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner z-10 relative mt-2`}>
+                                    <i className={`fas ${getStatusInfo(selectedMember.status).icon}`}></i>
                                 </div>
                                 
                                 <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
                                 {selectedMember.status && (
-                                    <span className={`inline-block mt-2 mb-1 text-[11px] font-bold px-3 py-1 rounded-full ${selectedMember.status.toLowerCase() === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                        <i className={`fas ${selectedMember.status.toLowerCase() === 'active' ? 'fa-check-circle' : 'fa-times-circle'} mr-1`}></i> 
-                                        {selectedMember.status}
+                                    <span className={`inline-block mt-2 mb-1 text-[11px] font-bold px-3 py-1 rounded-full ${getStatusInfo(selectedMember.status).badge}`}>
+                                        <i className={`fas ${getStatusInfo(selectedMember.status).icon} mr-1`}></i> 
+                                        {getStatusInfo(selectedMember.status).full}
                                     </span>
                                 )}
                                 <p className={`${currentTheme.accent} font-medium text-sm mt-1`}>{selectedMember.id}</p>
                                 <p className="text-gray-500 text-sm mt-1">{selectedMember.mobile1}</p>
                             </div>
 
+                            {renderYearSwitcher()}
                             <h3 className="text-lg font-bold text-gray-900 mb-3">Financial Analytics</h3>
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
                                 <div className="flex justify-between items-end mb-2">
                                     <div>
-                                        <p className="text-xs text-gray-400 font-medium">TOTAL PAID (2026)</p>
+                                        <p className="text-xs text-gray-400 font-medium">TOTAL PAID ({selectedYear})</p>
                                         <p className="text-2xl font-bold text-gray-900">৳ {selectedMember.totalYearly}</p>
                                     </div>
                                     <div className="text-right">
@@ -969,13 +1057,13 @@
 
                             <div className="flex items-center justify-between mb-3 mt-6">
                                 <h3 className="text-lg font-bold text-gray-900">
-                                    <i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা (২০২৬)
+                                    <i className={`fas fa-calendar-check mr-2 ${currentTheme.accent}`}></i>মাসিক চাঁদা ({toBn(selectedYear)})
                                 </h3>
                                 <button 
-                                    onClick={() => { setEditTarget('payment'); setShowEditPinModal(true); }} 
+                                    onClick={() => { if (isEditingMonths) { setIsEditingMonths(false); } else { setEditTarget('payment'); setShowEditPinModal(true); } }} 
                                     className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-emerald-600 transition-colors"
                                 >
-                                    <i className="fas fa-pencil-alt text-xs"></i>
+                                    <i className={`fas ${isEditingMonths ? 'fa-times' : 'fa-pencil-alt'} text-xs`}></i>
                                 </button>
                             </div>
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 mb-6">
@@ -986,13 +1074,36 @@
                                         return (
                                             <div key={month} className="flex flex-col items-center">
                                                 <p className="text-[11px] font-semibold text-gray-500 mb-1.5">{monthLabels[idx]}</p>
-                                                <div className={`w-full h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-colors ${isPaid ? currentTheme.primary + ' text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}>
-                                                    {isPaid ? <span>{status.amount}</span> : <i className="fas fa-times text-sm opacity-50"></i>}
-                                                </div>
+                                                {isEditingMonths ? (
+                                                    <input
+                                                        type="number"
+                                                        inputMode="numeric"
+                                                        min="0"
+                                                        value={monthEdits[month] ?? ''}
+                                                        onChange={(e) => setMonthEdits({ ...monthEdits, [month]: e.target.value })}
+                                                        placeholder="0"
+                                                        className={`w-full h-10 rounded-xl text-center text-xs font-bold focus:outline-none border transition-colors ${((monthEdits[month] === '' || monthEdits[month] === undefined ? 0 : Number(monthEdits[month])) !== (parseFloat(selectedMember[month]) || 0)) ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-700 focus:border-emerald-500 focus:bg-white'}`}
+                                                    />
+                                                ) : (
+                                                    <div className={`w-full h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-colors ${isPaid ? currentTheme.primary + ' text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}>
+                                                        {isPaid ? <span>{status.amount}</span> : <i className="fas fa-times text-sm opacity-50"></i>}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
+                                {isEditingMonths && (
+                                    <div className="mt-5 pt-4 border-t border-gray-100">
+                                        <p className="text-[11px] text-gray-400 mb-3">এক বা একাধিক মাসের পরিমাণ লিখুন, তারপর একবারে সেভ করুন। ফাঁকা বা ০ রাখলে ওই মাস অপরিশোধিত থাকবে।</p>
+                                        <div className="flex gap-3">
+                                            <button onClick={() => setIsEditingMonths(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                            <button onClick={saveMonthEdits} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                                {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'সেভ করুন'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <h3 className="text-lg font-bold text-gray-900 mb-3 mt-6">Personal Info</h3>
@@ -1100,6 +1211,7 @@
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">স্ট্যাটাস</label>
                                         <select value={editData.status} onChange={(e) => setEditData({...editData, status: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                                            <option value="PM">PM (Permanent Member)</option>
                                             <option value="Active">Active</option>
                                             <option value="Inactive">Inactive</option>
                                         </select>
@@ -1119,34 +1231,7 @@
                         </div>
                     )}
 
-                    {showPaymentEditForm && (
-                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
-                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
-                                <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
-                                    <i className={`fas fa-calendar-alt ${currentTheme.accent}`}></i> চাঁদা আপডেট: {paymentData.id}
-                                </h2>
-                                <div className="space-y-4 text-left">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">মাস নির্বাচন করুন</label>
-                                        <select value={paymentData.month} onChange={(e) => setPaymentData({...paymentData, month: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors">
-                                            {months.map((m, i) => <option key={m} value={m}>{monthLabels[i]}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">চাঁদার পরিমাণ (৳)</label>
-                                        <input type="number" value={paymentData.amount} onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})} placeholder="যেমন: ২০০" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
-                                    </div>
-                                </div>
-                                <div className="flex gap-3 mt-8">
-                                    <button onClick={() => setShowPaymentEditForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
-                                    <button onClick={() => performUpdate({...paymentData, updateType: 'payment'}, 'মাসিক চাঁদা আপডেট হয়েছে!')} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                                        {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'সেভ করুন'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
+                    
                     {showDonationEditForm && (
                         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
                             <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
