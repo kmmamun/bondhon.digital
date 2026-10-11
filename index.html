@@ -944,13 +944,13 @@
                                     <div className={`${currentTheme.primary} h-full rounded-full transition-all duration-500`} style={{width: `${Math.min(100, (selectedMember.monthlyPaidTotal / selectedMember.expectedYearly) * 100 || 0)}%`}}></div>
                                 </div>
                                 <p className="text-[10px] text-gray-400 text-right mt-1 mb-3">
-                                    Expected Monthly Sub: ৳{selectedMember.expectedYearly}
+                                    Expected Yearly Sub: ৳{selectedMember.expectedYearly}
                                 </p>
                                 
                                 <div className="flex justify-between border-t border-gray-100 pt-3 mt-3">
                                     <div>
                                         <p className="text-xs text-gray-400">Monthly Subs.</p>
-                                        <p className="font-semibold text-sm">৳ {selectedMember.monthlyPaidTotal}</p>
+                                        <p className="font-semibold text-sm">৳ {selectedMember.monthlySubscription}</p>
                                     </div>
                                     <div className="text-right flex items-center justify-end gap-2">
                                         <div>
