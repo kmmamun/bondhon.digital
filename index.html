@@ -610,9 +610,7 @@
                     totalExpenseAmt += e.amount; 
                 });
 
-                eventsData.forEach(ev => {
-                    totalEventExpense += ev.expense;
-                });
+                // প্রোগ্রামের খরচ এখন Expenses শিট থেকেই আসে (আলাদা করে Events শিটের খরচ যোগ হয় না)
                 
                 const totalAllExpense = totalExpenseAmt + totalEventExpense;
                 const currentBalance = totalIncome - totalAllExpense;
@@ -717,6 +715,15 @@
                     showToast('পিন কোড ভুল হয়েছে!', 'error'); 
                     setEditPinInput(''); 
                 }
+            };
+
+            const eventExpenseInfo = (ev) => {
+                let total = 0, count = 0;
+                const evName = (ev.name || '').trim();
+                expensesData.forEach(e => {
+                    if (evName && (e.purpose || '').trim() === evName) { total += Number(e.amount) || 0; count += 1; }
+                });
+                return { total, count };
             };
 
             const eventDonationInfo = (ev) => {
@@ -1513,6 +1520,9 @@
                                                     {eventDonationInfo(ev).total > 0 && (
                                                         <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full"><i className="fas fa-hand-holding-heart mr-1"></i>৳{eventDonationInfo(ev).total.toLocaleString()}</span>
                                                     )}
+                                                    {eventExpenseInfo(ev).total > 0 && (
+                                                        <span className="text-[11px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full"><i className="fas fa-receipt mr-1"></i>৳{eventExpenseInfo(ev).total.toLocaleString()}</span>
+                                                    )}
                                                     <i className={`fas fa-chevron-down text-xs text-gray-400 transition-transform ${expandedEventId === idx ? 'rotate-180' : ''}`}></i>
                                                 </div>
                                             </div>
@@ -1523,12 +1533,10 @@
                                                         <span className="text-xs font-semibold text-emerald-700"><i className="fas fa-hand-holding-heart mr-1"></i>ডোনেশন জমা ({eventDonationInfo(ev).count} জন)</span>
                                                         <span className="font-bold text-emerald-700">+ ৳{eventDonationInfo(ev).total.toLocaleString()}</span>
                                                     </div>
-                                                    {ev.expense > 0 && (
-                                                        <div className="flex justify-between items-center bg-red-50 rounded-lg px-3 py-2 mb-3">
-                                                            <span className="text-xs font-semibold text-red-600">প্রোগ্রাম খরচ</span>
-                                                            <span className="font-bold text-red-600">- ৳{ev.expense.toLocaleString()}</span>
-                                                        </div>
-                                                    )}
+                                                    <div className="flex justify-between items-center bg-red-50 rounded-lg px-3 py-2 mb-3">
+                                                        <span className="text-xs font-semibold text-red-600"><i className="fas fa-receipt mr-1"></i>প্রোগ্রাম খরচ ({eventExpenseInfo(ev).count} টি)</span>
+                                                        <span className="font-bold text-red-600">- ৳{eventExpenseInfo(ev).total.toLocaleString()}</span>
+                                                    </div>
                                                     {isAuthorized && (
                                                         <button
                                                             onClick={() => { setDeleteEventTarget(ev); setEditTarget('delete_event'); setShowEditPinModal(true); }}
