@@ -159,7 +159,6 @@
                 const cy = new Date().getFullYear();
                 return YEARS.includes(cy) ? cy : YEARS[YEARS.length - 1];
             });
-            const membersData = yearData[selectedYear] || EMPTY_LIST;
             const setMembersData = (updater) => setYearData(prev => ({
                 ...prev,
                 [selectedYear]: typeof updater === 'function' ? updater(prev[selectedYear] || []) : updater
@@ -209,9 +208,27 @@
             const [monthEdits, setMonthEdits] = useState({});
             const [donationData, setDonationData] = useState({ amount: '', eventId: '', date: '' });
             const [donationsList, setDonationsList] = useState([]);
+
+            // সদস্যের ডোনেশন = Donations শিটে ওই সদস্যের ওই বছরের সব রেকর্ডের যোগফল
+            const yearDataFull = useMemo(() => {
+                const totals = {};
+                donationsList.forEach(d => {
+                    const key = `${d.year}|${d.memberId}`;
+                    totals[key] = (totals[key] || 0) + d.amount;
+                });
+                const out = {};
+                Object.keys(yearData).forEach(y => {
+                    out[y] = yearData[y].map(m => {
+                        const don = totals[`${y}|${m.id}`] || 0;
+                        return { ...m, donation: don, totalYearly: (m.monthlyPaidTotal || 0) + don };
+                    });
+                });
+                return out;
+            }, [yearData, donationsList]);
+            const membersData = yearDataFull[selectedYear] || EMPTY_LIST;
             const [newNoticeData, setNewNoticeData] = useState({ title: '', message: '' });
             const [newExpenseData, setNewExpenseData] = useState({ purpose: '', customPurpose: '', amount: '' });
-            const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '', amount: '' });
+            const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '' });
             
             const [isUpdating, setIsUpdating] = useState(false);
             
@@ -226,6 +243,7 @@
             const ABOUT_US_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1375885684';
             const EXPENSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=429716275'; 
             const EVENTS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1862330748';
+            const DONATIONS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1q-TZj3ur3FtPMB1Z2Ppq9tG8DUAyRhLObzxo4PEVlFs/export?format=csv&gid=1738454596';
             // =========================================================================
 
             const themeStyles = {
@@ -397,15 +415,40 @@
                 }
             };
 
-            // Donations: Apps Script (doGet) থেকে ডোনেশনের রেকর্ড আসে
+            // Donations শিট: A=ID, B=Date, C=Member ID, D=Member Name, E=Event ID, F=Event, G=Amount, H=Year
             const fetchDonations = async () => {
                 try {
-                    const response = await fetch(`${APPS_SCRIPT_URL}?action=donations&t=${new Date().getTime()}`, { cache: 'no-store' });
+                    const response = await fetch(`${DONATIONS_SHEET_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
                     if (!response.ok) return;
-                    const result = await response.json();
-                    if (result.status === 'success' && Array.isArray(result.donations)) {
-                        setDonationsList(result.donations);
+                    const csvText = await response.text();
+                    if (!isValidCSV(csvText)) return;
+
+                    const yearFromDate = (str) => {
+                        const full = (str || '').match(/(20\d{2})/);
+                        if (full) return Number(full[1]);
+                        const short = (str || '').match(/-(\d{2})\s*$/);
+                        return short ? 2000 + Number(short[1]) : 0;
+                    };
+
+                    const rows = parseCSV(csvText);
+                    const list = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const c = rows[i];
+                        const memberId = (c[2] || '').trim();
+                        const amount = parseFloat(c[6]) || 0;
+                        if (!memberId || amount <= 0) continue;
+                        list.push({
+                            id: c[0] || '',
+                            date: c[1] || '',
+                            memberId,
+                            memberName: c[3] || '',
+                            eventId: c[4] || '',
+                            eventName: (c[5] || '').trim(),
+                            amount,
+                            year: parseInt(c[7]) || yearFromDate(c[1])
+                        });
                     }
+                    setDonationsList(list);
                 } catch (error) {
                     console.error('Donations fetch error:', error);
                 }
@@ -496,7 +539,7 @@
                             
                             const monthlyPaidTotal = paidAmounts.reduce((a, b) => a + b, 0); 
                             const expectedYearly = monthlySubscription * 12; 
-                            const donation = parseFloat(cells[29]) || 0;
+                            const donation = 0; // ডোনেশন এখন Donations শিট থেকে হিসাব হয়
                             const totalYearly = monthlyPaidTotal + donation; 
 
                             members.push({
@@ -559,7 +602,7 @@
                     yearIncome += m.totalYearly; 
                 });
                 let allExpected = 0;
-                Object.values(yearData).forEach(list => list.forEach(m => { totalIncome += m.totalYearly; allExpected += m.expectedYearly; }));
+                Object.values(yearDataFull).forEach(list => list.forEach(m => { totalIncome += m.totalYearly; allExpected += m.expectedYearly; }));
                 const displayIncome = allYears ? totalIncome : yearIncome;
                 const displayExpected = allYears ? allExpected : totalExpected;
                 
@@ -586,7 +629,7 @@
                     currentBalance, 
                     percentage 
                 };
-            }, [membersData, yearData, expensesData, eventsData, allYears]);
+            }, [membersData, yearDataFull, expensesData, eventsData, allYears]);
 
             const filteredMembers = useMemo(() => {
                 return membersData.filter(member => 
@@ -649,7 +692,7 @@
                         setNewExpenseData({ purpose: '', customPurpose: '', amount: '' }); 
                         setShowAddExpenseForm(true);
                     } else if (editTarget === 'add_event') {
-                        setNewEventData({ date: '', name: '', details: '', amount: '' });
+                        setNewEventData({ date: '', name: '', details: '' });
                         setShowAddEventForm(true);
                     } else if (editTarget === 'delete_event') {
                         if (deleteEventTarget) {
@@ -704,10 +747,6 @@
 
                 const ok = await performUpdate({ id: memberId, year: donationYear, updateType: 'donation', amount: amt, eventId: '', eventName, date: sheetDate }, 'ডোনেশন সফলভাবে যুক্ত হয়েছে!');
                 if (ok) {
-                    setYearData(prev => ({
-                        ...prev,
-                        [donationYear]: (prev[donationYear] || []).map(m => m.id === memberId ? { ...m, donation: (m.donation || 0) + amt, totalYearly: (m.totalYearly || 0) + amt } : m)
-                    }));
                     setDonationsList(prev => [...prev, { id: String(Date.now()), date: sheetDate, memberId, eventId: '', eventName, amount: amt, year: donationYear }]);
                 }
             };
@@ -1403,10 +1442,6 @@
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">বিস্তারিত (Details)</label>
                                         <textarea rows="4" value={newEventData.details} onChange={(e) => setNewEventData({...newEventData, details: e.target.value})} placeholder="প্রোগ্রামের সম্পূর্ণ বিবরণ লিখুন..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"></textarea>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">খরচ (৳) — মাস্টার অ্যাকাউন্ট থেকে কাটা হবে</label>
-                                        <input type="number" value={newEventData.amount} onChange={(e) => setNewEventData({...newEventData, amount: e.target.value})} placeholder="যেমন: ২০০০ (না থাকলে ফাঁকা রাখুন)" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                                     </div>
                                 </div>
                                 <div className="flex gap-3 mt-8">
