@@ -228,7 +228,7 @@
             }, [yearData, donationsList]);
             const membersData = yearDataFull[selectedYear] || EMPTY_LIST;
             const [newNoticeData, setNewNoticeData] = useState({ title: '', message: '' });
-            const [newExpenseData, setNewExpenseData] = useState({ purpose: '', customPurpose: '', amount: '' });
+            const [newExpenseData, setNewExpenseData] = useState({ purpose: '', customPurpose: '', amount: '', date: todayISO() });
             const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '' });
             
             const [isUpdating, setIsUpdating] = useState(false);
@@ -688,7 +688,7 @@
                         setNewNoticeData({ title: '', message: '' }); 
                         setShowAddNoticeForm(true);
                     } else if (editTarget === 'add_expense') {
-                        setNewExpenseData({ purpose: '', customPurpose: '', amount: '' }); 
+                        setNewExpenseData({ purpose: '', customPurpose: '', amount: '', date: todayISO() }); 
                         setShowAddExpenseForm(true);
                     } else if (editTarget === 'add_event') {
                         setNewEventData({ date: '', name: '', details: '' });
@@ -769,8 +769,9 @@
                     ? (newExpenseData.customPurpose || '').trim()
                     : newExpenseData.purpose;
                 if (!finalPurpose) { showToast('খরচের খাত নির্বাচন করুন বা লিখুন!', 'error'); return; }
+                if (!newExpenseData.date) { showToast('খরচের তারিখ দিন!', 'error'); return; }
                 if (!newExpenseData.amount || Number(newExpenseData.amount) <= 0) { showToast('টাকার পরিমাণ লিখুন!', 'error'); return; }
-                performUpdate({ purpose: finalPurpose, amount: newExpenseData.amount, updateType: 'add_expense' }, 'খরচ সফলভাবে যুক্ত হয়েছে!');
+                performUpdate({ purpose: finalPurpose, amount: newExpenseData.amount, date: newExpenseData.date, updateType: 'add_expense' }, 'খরচ সফলভাবে যুক্ত হয়েছে!');
             };
 
             const saveMonthEdits = async () => {
@@ -1426,6 +1427,10 @@
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">টাকার পরিমাণ (৳)</label>
                                         <input type="number" value={newExpenseData.amount} onChange={(e) => setNewExpenseData({...newExpenseData, amount: e.target.value})} placeholder="যেমন: ৫০০" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                                     </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 mb-1 block">খরচের তারিখ (Date)</label>
+                                    <input type="date" value={newExpenseData.date} onChange={(e) => setNewExpenseData({...newExpenseData, date: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                </div>
                                 </div>
                                 <div className="flex gap-3 mt-8">
                                     <button onClick={() => setShowAddExpenseForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
