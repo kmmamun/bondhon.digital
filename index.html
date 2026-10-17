@@ -194,6 +194,7 @@
             const [showEditPinModal, setShowEditPinModal] = useState(false);
             const [editTarget, setEditTarget] = useState(null); 
             const [deleteEventTarget, setDeleteEventTarget] = useState(null);
+            const [editingEvent, setEditingEvent] = useState(null);
             const [showProfileEditForm, setShowProfileEditForm] = useState(false);
             const [showPaymentEditForm, setShowPaymentEditForm] = useState(false);
             const [showDonationEditForm, setShowDonationEditForm] = useState(false);
@@ -403,6 +404,7 @@
                         if (cells[2]) {
                             evList.push({
                                 id: cells[0] || '',
+                                row: i + 1,
                                 date: cells[1] || '',
                                 name: cells[2],
                                 details: cells[3] || '',
@@ -691,11 +693,20 @@
                         setNewExpenseData({ purpose: '', customPurpose: '', amount: '', date: todayISO() }); 
                         setShowAddExpenseForm(true);
                     } else if (editTarget === 'add_event') {
+                        setEditingEvent(null);
                         setNewEventData({ date: '', name: '', details: '' });
                         setShowAddEventForm(true);
+                    } else if (editTarget === 'edit_event') {
+                        if (editingEvent) {
+                            setNewEventData({ date: editingEvent.date || '', name: editingEvent.name || '', details: editingEvent.details || '' });
+                            setShowAddEventForm(true);
+                        }
                     } else if (editTarget === 'delete_event') {
                         if (deleteEventTarget) {
-                            performUpdate({ id: deleteEventTarget.id, updateType: 'delete_event' }, 'প্রোগ্রাম মুছে ফেলা হয়েছে!');
+                            const delEv = deleteEventTarget;
+                            performUpdate({ id: delEv.id, row: delEv.row, name: delEv.name, updateType: 'delete_event' }, 'প্রোগ্রাম মুছে ফেলা হয়েছে!').then(ok => {
+                                if (ok) setEventsData(prev => prev.filter(e => e !== delEv));
+                            });
                         }
                         setDeleteEventTarget(null);
                     } else {
@@ -733,11 +744,20 @@
             };
 
             const eventDonationInfo = (ev) => {
-                let total = 0, count = 0;
+                let total = 0;
+                const byMember = {};
+                const evName = normName(ev.name);
                 donationsList.forEach(d => {
-                    if (normName(d.eventName) && normName(d.eventName) === normName(ev.name)) { total += Number(d.amount) || 0; count += 1; }
+                    if (evName && normName(d.eventName) === evName) {
+                        total += d.amount;
+                        const key = d.memberId;
+                        if (!byMember[key]) byMember[key] = { memberId: d.memberId, name: d.memberName || d.memberId, total: 0, times: 0, date: d.date };
+                        byMember[key].total += d.amount;
+                        byMember[key].times += 1;
+                    }
                 });
-                return { total, count };
+                const donors = Object.values(byMember).sort((x, y) => y.total - x.total);
+                return { total, count: donors.length, donors };
             };
 
             const submitDonation = async () => {
@@ -761,6 +781,28 @@
                 const ok = await performUpdate({ id: memberId, year: donationYear, updateType: 'donation', amount: amt, eventId: '', eventName, date: sheetDate }, 'ডোনেশন সফলভাবে যুক্ত হয়েছে!');
                 if (ok) {
                     setDonationsList(prev => [...prev, { id: String(Date.now()), date: sheetDate, memberId, eventId: '', eventName, amount: amt, year: donationYear }]);
+                }
+            };
+
+            const submitEvent = async () => {
+                if (!editingEvent) {
+                    performUpdate({ ...newEventData, updateType: 'add_event' }, 'নতুন প্রোগ্রাম যুক্ত হয়েছে!');
+                    return;
+                }
+                const ev = editingEvent;
+                const payload = {
+                    updateType: 'edit_event',
+                    id: ev.id, row: ev.row, oldName: ev.name, oldDate: ev.date,
+                    name: newEventData.name.trim(), date: newEventData.date, details: newEventData.details
+                };
+                const ok = await performUpdate(payload, 'প্রোগ্রাম আপডেট হয়েছে!');
+                if (ok) {
+                    setEventsData(prev => prev.map(e => e === ev ? { ...e, name: payload.name, date: payload.date || e.date, details: payload.details } : e));
+                    if (normName(ev.name) !== normName(payload.name)) {
+                        setExpensesData(prev => prev.map(x => normName(x.purpose) === normName(ev.name) ? { ...x, purpose: payload.name } : x));
+                        setDonationsList(prev => prev.map(d => normName(d.eventName) === normName(ev.name) ? { ...d, eventName: payload.name } : d));
+                    }
+                    setEditingEvent(null);
                 }
             };
 
@@ -1446,7 +1488,7 @@
                         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
                             <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto no-scrollbar">
                                 <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
-                                    <i className="fas fa-calendar-plus text-blue-500"></i> নতুন প্রোগ্রাম যোগ করুন
+                                    <i className={`fas ${editingEvent ? 'fa-edit' : 'fa-calendar-plus'} text-blue-500`}></i> {editingEvent ? 'প্রোগ্রাম এডিট করুন' : 'নতুন প্রোগ্রাম যোগ করুন'}
                                 </h2>
                                 <div className="space-y-4 text-left">
                                     <div>
@@ -1454,7 +1496,7 @@
                                         <input type="text" value={newEventData.name} onChange={(e) => setNewEventData({...newEventData, name: e.target.value})} placeholder="যেমন: বৃক্ষরোপণ কর্মসূচি" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">তারিখ (Date) — ফাঁকা রাখলে আজকের তারিখ বসবে</label>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">{editingEvent ? 'তারিখ (Date) — ফাঁকা রাখলে আগের তারিখই থাকবে' : 'তারিখ (Date) — ফাঁকা রাখলে আজকের তারিখ বসবে'}</label>
                                         <input type="text" value={newEventData.date} onChange={(e) => setNewEventData({...newEventData, date: e.target.value})} placeholder="যেমন: 15-Oct-26" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                                     </div>
                                     <div>
@@ -1463,9 +1505,9 @@
                                     </div>
                                 </div>
                                 <div className="flex gap-3 mt-8">
-                                    <button onClick={() => setShowAddEventForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
-                                    <button onClick={() => performUpdate({...newEventData, updateType: 'add_event'}, 'নতুন প্রোগ্রাম যুক্ত হয়েছে!')} disabled={isUpdating || !newEventData.name} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${(isUpdating || !newEventData.name) ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                                        {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'যোগ করুন'}
+                                    <button onClick={() => { setShowAddEventForm(false); setEditingEvent(null); }} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                    <button onClick={submitEvent} disabled={isUpdating || !newEventData.name} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${(isUpdating || !newEventData.name) ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                        {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : (editingEvent ? 'সেভ করুন' : 'যোগ করুন')}
                                     </button>
                                 </div>
                             </div>
@@ -1540,9 +1582,24 @@
                                             {expandedEventId === idx && (
                                                 <div className="px-4 pb-4 pt-1 border-t border-gray-100">
                                                     {ev.details && <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap mb-3">{ev.details}</p>}
-                                                    <div className="flex justify-between items-center bg-emerald-50 rounded-lg px-3 py-2 mb-3">
-                                                        <span className="text-xs font-semibold text-emerald-700"><i className="fas fa-hand-holding-heart mr-1"></i>ডোনেশন জমা ({eventDonationInfo(ev).count} জন)</span>
-                                                        <span className="font-bold text-emerald-700">+ ৳{eventDonationInfo(ev).total.toLocaleString()}</span>
+                                                    <div className="bg-emerald-50 rounded-lg px-3 py-2 mb-3">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-xs font-semibold text-emerald-700"><i className="fas fa-hand-holding-heart mr-1"></i>ডোনেশন জমা ({eventDonationInfo(ev).count} জন)</span>
+                                                            <span className="font-bold text-emerald-700">+ ৳{eventDonationInfo(ev).total.toLocaleString()}</span>
+                                                        </div>
+                                                        {eventDonationInfo(ev).donors.length > 0 && (
+                                                            <div className="mt-2 pt-2 border-t border-emerald-100 space-y-1.5">
+                                                                {eventDonationInfo(ev).donors.map((dn, k) => (
+                                                                    <div key={k} className="flex justify-between items-start gap-3 text-xs text-emerald-700">
+                                                                        <span className="min-w-0">
+                                                                            <i className="fas fa-user mr-1 opacity-70"></i>{dn.name}
+                                                                            {dn.times > 1 ? <span className="text-emerald-500"> ({dn.times} বার)</span> : (dn.date ? <span className="text-emerald-500"> · {dn.date}</span> : null)}
+                                                                        </span>
+                                                                        <span className="font-semibold whitespace-nowrap">+ ৳{dn.total.toLocaleString()}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="bg-red-50 rounded-lg px-3 py-2 mb-3">
                                                         <div className="flex justify-between items-center">
@@ -1561,12 +1618,20 @@
                                                         )}
                                                     </div>
                                                     {isAuthorized && (
-                                                        <button
-                                                            onClick={() => { setDeleteEventTarget(ev); setEditTarget('delete_event'); setShowEditPinModal(true); }}
-                                                            className="w-full py-2 rounded-lg bg-gray-100 text-gray-500 text-xs font-semibold hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center gap-1.5"
-                                                        >
-                                                            <i className="fas fa-trash-alt"></i> প্রোগ্রাম মুছুন
-                                                        </button>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => { setEditingEvent(ev); setEditTarget('edit_event'); setShowEditPinModal(true); }}
+                                                                className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-500 text-xs font-semibold hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+                                                            >
+                                                                <i className="fas fa-pen"></i> প্রোগ্রাম এডিট
+                                                            </button>
+                                                            <button
+                                                                onClick={() => { setDeleteEventTarget(ev); setEditTarget('delete_event'); setShowEditPinModal(true); }}
+                                                                className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-500 text-xs font-semibold hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                                                            >
+                                                                <i className="fas fa-trash-alt"></i> প্রোগ্রাম মুছুন
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
