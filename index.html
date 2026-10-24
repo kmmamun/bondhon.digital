@@ -125,6 +125,12 @@
         // gid ফাঁকা থাকলে জের দেখানো ও যোগ করা বন্ধ থাকবে।
         const OPENING_BALANCE_GID = '1527953527';
         const OPENING_BALANCE_URL = OPENING_BALANCE_GID ? SHEET_FILE_EXPORT + OPENING_BALANCE_GID : '';
+        // ===== চাঁদা পরিশোধের অ্যাকাউন্ট (বন্ধন হিসাব) =====
+        // নতুন অ্যাকাউন্ট (নগদ/ব্যাংক) যোগ করতে এখানে আরেকটি লাইন যোগ করুন।
+        const PAYMENT_ACCOUNTS = [
+            { name: 'বিকাশ', number: '01999708877' }
+        ];
+        const BLOOD_GROUPS = ['A(+)', 'A(-)', 'B(+)', 'B(-)', 'AB(+)', 'AB(-)', 'O(+)', 'O(-)'];
         const EMPTY_LIST = [];
         const GENERAL_DONATION_LABEL = 'অন্যান্য (ইভেন্ট ছাড়া)';
         const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -132,6 +138,34 @@
         const isoToSheetDate = (iso) => { const [y, m, d] = iso.split('-'); return `${d}-${MONTH_ABBR[Number(m) - 1]}-${y.slice(2)}`; };
         const normName = (t) => (t || '').normalize('NFC').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ').trim();
         const toBn = (n) => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
+        const toEnDigits = (t) => String(t == null ? '' : t).replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+        const MONTH_IDX = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+        const BN_MONTHS = ['জানু', 'ফেব্রু', 'মার্চ', 'এপ্রি', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টে', 'অক্টো', 'নভে', 'ডিসে'];
+        // শিটের বিভিন্ন ফরম্যাটের তারিখ (MM/dd/yyyy, dd-MMM-yy, dd-MM-yyyy, yyyy-mm-dd, বাংলা অঙ্ক) পড়ে Date বানায়
+        const parseAnyDate = (raw) => {
+            const t = toEnDigits(raw).trim();
+            if (!t) return null;
+            let m;
+            if ((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return new Date(+m[1], +m[2] - 1, +m[3]);
+            if ((m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/))) return new Date(+m[3], +m[1] - 1, +m[2]);
+            if ((m = t.match(/^(\d{1,2})-([A-Za-z]{3})[A-Za-z]*-(\d{2,4})$/))) {
+                const mo = MONTH_IDX[m[2].toLowerCase()];
+                if (mo !== undefined) { let y = +m[3]; if (y < 100) y += 2000; return new Date(y, mo, +m[1]); }
+            }
+            if ((m = t.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/))) return new Date(+m[3], +m[2] - 1, +m[1]);
+            const d = new Date(t);
+            return isNaN(d.getTime()) ? null : d;
+        };
+        const fmtBnDate = (d) => `${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
+        const dateToISO = (raw) => {
+            const d = parseAnyDate(raw);
+            if (!d) return '';
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${d.getFullYear()}-${mm}-${dd}`;
+        };
+        const isoToLongDate = (iso) => { const [y, m, d] = iso.split('-'); return `${d}-${MONTH_ABBR[Number(m) - 1]}-${y}`; };
+        const fmtMoney = (n) => Number(n || 0).toLocaleString('en-IN');
 
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => {
@@ -216,6 +250,14 @@
             const [donationData, setDonationData] = useState({ amount: '', eventId: '', date: '' });
             const [donationsList, setDonationsList] = useState([]);
             const [openingList, setOpeningList] = useState([]);
+            const [txFilter, setTxFilter] = useState('all');
+            const [showAllTx, setShowAllTx] = useState(false);
+            const [showQuickAdd, setShowQuickAdd] = useState(false);
+            const [showAddMemberForm, setShowAddMemberForm] = useState(false);
+            const [newMemberData, setNewMemberData] = useState({});
+            const [breakdownMemberId, setBreakdownMemberId] = useState(null);
+            const [donFilterMember, setDonFilterMember] = useState('');
+            const [donFilterEvent, setDonFilterEvent] = useState('');
 
             // সদস্যের ডোনেশন = Donations শিটে ওই সদস্যের ওই বছরের সব রেকর্ডের যোগফল
             const yearDataFull = useMemo(() => {
@@ -234,6 +276,11 @@
                 return out;
             }, [yearData, donationsList]);
             const membersData = yearDataFull[selectedYear] || EMPTY_LIST;
+            const allMembersList = useMemo(() => {
+                const map = {};
+                Object.keys(yearDataFull).sort().forEach(y => yearDataFull[y].forEach(m => { map[m.id] = { id: m.id, name: m.name }; }));
+                return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+            }, [yearDataFull]);
             const [newNoticeData, setNewNoticeData] = useState({ title: '', message: '' });
             const [newExpenseData, setNewExpenseData] = useState({ purpose: '', customPurpose: '', amount: '', date: todayISO() });
             const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '' });
@@ -586,6 +633,7 @@
                                 nid: cells[9] || '', 
                                 mobile1: cells[10] || '', 
                                 email: cells[12] || '', 
+                                joiningDate: cells[14] || '', 
                                 monthlySubscription, 
                                 jan: cells[17] || '0', 
                                 feb: cells[18] || '0', 
@@ -648,6 +696,12 @@
                 const openingTotal = openingList.reduce((a, o) => a + o.amount, 0);
                 // বর্তমান ব্যালেন্স = পূর্ববর্তী বছরের জের + সব বছরের চাঁদা ও ডোনেশন − সব খরচ
                 const currentBalance = openingTotal + totalIncome - totalAllExpense;
+                // বছর ট্যাবে খরচ = ওই বছরের তারিখের খরচ; "সব" ট্যাবে সব খরচ
+                const yearExpense = expensesData.reduce((a, e) => {
+                    const d = parseAnyDate(e.date);
+                    return (d && d.getFullYear() === selectedYear) ? a + (Number(e.amount) || 0) : a;
+                }, 0);
+                const displayExpense = allYears ? totalAllExpense : yearExpense;
                 const percentage = displayExpected > 0 ? Math.round((displayIncome / displayExpected) * 100) : 0;
                 
                 return { 
@@ -660,9 +714,25 @@
                     totalAllExpense,
                     currentBalance, 
                     openingTotal,
+                    displayExpense,
                     percentage 
                 };
-            }, [membersData, yearDataFull, expensesData, eventsData, allYears, openingList]);
+            }, [membersData, yearDataFull, expensesData, eventsData, allYears, openingList, selectedYear]);
+
+            // সাম্প্রতিক লেনদেন = ডোনেশন (+) ও খরচ (−), নতুন আগে
+            const transactions = useMemo(() => {
+                const list = [];
+                donationsList.forEach((d, i) => {
+                    const dt = parseAnyDate(d.date);
+                    list.push({ kind: 'donation', title: d.memberName || d.memberId, sub: d.eventName || '', amount: d.amount, date: dt, rawDate: d.date, order: i, year: dt ? dt.getFullYear() : (d.year || null) });
+                });
+                expensesData.forEach((e, i) => {
+                    const dt = parseAnyDate(e.date);
+                    list.push({ kind: 'expense', title: e.purpose, sub: '', amount: Number(e.amount) || 0, date: dt, rawDate: e.date, order: i, year: dt ? dt.getFullYear() : null });
+                });
+                list.sort((a, b) => ((b.date ? b.date.getTime() : 0) - (a.date ? a.date.getTime() : 0)) || (b.order - a.order));
+                return list;
+            }, [donationsList, expensesData]);
 
             const filteredMembers = useMemo(() => {
                 return membersData.filter(member => 
@@ -673,6 +743,7 @@
             }, [searchTerm, membersData]);
 
             const selectedMember = membersData.find(m => m.id === selectedMemberId);
+            const breakdownMember = membersData.find(m => m.id === breakdownMemberId);
 
             useEffect(() => { setIsEditingMonths(false); }, [selectedMemberId, activeTab, selectedYear]);
 
@@ -728,6 +799,12 @@
                         setEditingEvent(null);
                         setNewEventData({ date: '', name: '', details: '' });
                         setShowAddEventForm(true);
+                    } else if (editTarget === 'donation_new') {
+                        setDonationData({ id: '', pickMember: true, amount: '', eventId: '', date: todayISO() });
+                        setShowDonationEditForm(true);
+                    } else if (editTarget === 'add_member') {
+                        setNewMemberData({ year: selectedYear, id: '', name: '', status: 'Active', fatherName: '', dob: '', blood: '', address: '', occupation: '', nid: '', mobile1: '', email: '', joiningDate: isoToLongDate(todayISO()), monthlySubscription: '' });
+                        setShowAddMemberForm(true);
                     } else if (editTarget === 'edit_event') {
                         if (editingEvent) {
                             setNewEventData({ date: editingEvent.date || '', name: editingEvent.name || '', details: editingEvent.details || '' });
@@ -745,12 +822,12 @@
                         const sm = membersData.find(m => m.id === selectedMemberId);
                         if(sm) {
                             if (editTarget === 'profile') {
-                                setEditData({ id: sm.id, name: sm.name, status: getStatusInfo(sm.status).label || 'Active', mobile1: sm.mobile1 }); 
+                                setEditData({ id: sm.id, name: sm.name || '', status: getStatusInfo(sm.status).label || 'Active', fatherName: sm.fatherName || '', dob: sm.dob || '', blood: sm.blood || '', address: sm.address || '', occupation: sm.occupation || '', nid: sm.nid || '', mobile1: sm.mobile1 || '', email: sm.email || '', joiningDate: sm.joiningDate || '' }); 
                                 setShowProfileEditForm(true);
                             } else if (editTarget === 'payment') {
                                 const init = {}; months.forEach(mo => { init[mo] = parseFloat(sm[mo]) > 0 ? String(parseFloat(sm[mo])) : ''; }); setMonthEdits(init); setIsEditingMonths(true);
                             } else if (editTarget === 'donation') {
-                                setDonationData({ id: sm.id, amount: '', eventId: '', date: todayISO() }); 
+                                setDonationData({ id: sm.id, pickMember: false, amount: '', eventId: '', date: todayISO() }); 
                                 setShowDonationEditForm(true);
                             }
                         }
@@ -793,6 +870,7 @@
             };
 
             const submitDonation = async () => {
+                if (!donationData.id) { showToast('সদস্য নির্বাচন করুন!', 'error'); return; }
                 const amt = Number(donationData.amount);
                 if (!amt || amt <= 0) { showToast('ডোনেশনের পরিমাণ লিখুন!', 'error'); return; }
                 if (donationData.eventId === '') { showToast('ইভেন্ট নির্বাচন করুন!', 'error'); return; }
@@ -898,6 +976,7 @@
                         setShowAddNoticeForm(false); 
                         setShowAddExpenseForm(false);
                         setShowAddEventForm(false);
+                        setShowAddMemberForm(false);
                         
                         setTimeout(fetchAllData, 3000); 
                     } else { 
@@ -969,155 +1048,431 @@
                 </div>
             ) : null;
 
-            const renderHome = () => (
-                <div className="p-6 pt-2 animate-slide-up pb-28">
-                    <div className="mb-6 mt-2">
-                        <h2 className="text-2xl font-bold text-gray-900">{greeting}</h2>
-                        <p className={`font-medium mt-1 ${currentTheme.accent}`}>বন্ধন-এ আপনাকে স্বাগতম!</p>
-                    </div>
+            const inputCls = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors';
 
-                    {renderYearSwitcher(true)}
-                    <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 mb-6">
-                        <div className="flex items-center justify-between mb-4">
+            const copyText = async (text) => {
+                try { await navigator.clipboard.writeText(text); }
+                catch (e) {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; document.body.appendChild(ta); ta.select();
+                    try { document.execCommand('copy'); } catch (_) {}
+                    document.body.removeChild(ta);
+                }
+                showToast('নম্বর কপি হয়েছে');
+            };
+
+            const renderPayCard = (due) => (
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-pink-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-pink-50 text-pink-600 flex items-center justify-center text-lg flex-shrink-0"><i className="fas fa-mobile-alt"></i></div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-800 text-sm">চাঁদা পরিশোধ করুন</p>
+                            <p className="text-[11px] text-gray-400">বন্ধন হিসাব অ্যাকাউন্ট</p>
+                        </div>
+                    </div>
+                    {PAYMENT_ACCOUNTS.map(acc => (
+                        <div key={acc.number} className="mt-3 flex items-center justify-between bg-pink-50 rounded-xl px-3 py-2">
                             <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <p className="text-gray-500 text-sm font-medium">Total Collected Fund</p>
-                                    <button 
-                                        onClick={() => isAuthorized ? setIsAuthorized(false) : setShowAuthModal(true)} 
-                                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${isAuthorized ? 'bg-gray-100 text-gray-500' : currentTheme.bgLight + ' ' + currentTheme.accent}`}
-                                    >
-                                        <i className={`fas ${isAuthorized ? 'fa-unlock-alt' : 'fa-lock'} text-xs`}></i>
-                                    </button>
-                                </div>
-                                <h2 className="text-3xl font-bold text-gray-900 mb-1">
-                                    ৳ {isAuthorized ? stats.displayIncome.toLocaleString() : '****'}
-                                </h2>
-                                <p className="text-gray-400 text-sm">
-                                    Target ({allYears ? 'All' : selectedYear}): ৳ {isAuthorized ? stats.displayExpected.toLocaleString() : '****'}
-                                </p>
+                                <p className="text-[11px] text-pink-700 font-semibold">{acc.name} নম্বর</p>
+                                <p className="text-lg font-bold text-pink-700 tracking-wide">{acc.number}</p>
                             </div>
-                            <div className="relative w-24 h-24 progress-circle" style={{ background: `conic-gradient(${currentTheme.hex} ${isAuthorized ? stats.percentage : 0}%, #e0e7ff 0deg)` }}>
-                                <div className="relative z-10 flex flex-col items-center">
-                                    <span className="text-xl font-bold text-gray-800">
-                                        {isAuthorized ? stats.percentage : '**'}%
-                                    </span>
-                                    <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Collected</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {isAuthorized && (
-                            <div className="pt-4 mt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
-                                <div className="bg-emerald-50 rounded-xl p-3">
-                                    <p className="text-xs text-emerald-600 font-semibold mb-1">বর্তমান ব্যালেন্স</p>
-                                    <h3 className="text-xl font-bold text-emerald-700">
-                                        ৳ {stats.currentBalance.toLocaleString()}
-                                    </h3>
-                                </div>
-                                <div className="bg-red-50 rounded-xl p-3 cursor-pointer hover:bg-red-100 transition-colors" onClick={() => setShowExpenseList(true)}>
-                                    <p className="text-xs text-red-600 font-semibold mb-1">
-                                        মোট খরচ <i className="fas fa-chevron-right text-[10px] ml-1 opacity-50"></i>
-                                    </p>
-                                    <h3 className="text-xl font-bold text-red-700">
-                                        ৳ {stats.totalAllExpense.toLocaleString()}
-                                    </h3>
-                                </div>
-                            
-                                {stats.openingTotal !== 0 && (
-                                    <div className="col-span-2 flex justify-between items-center bg-blue-50 rounded-xl px-3 py-2">
-                                        <span className="text-xs font-semibold text-blue-600"><i className="fas fa-history mr-1"></i>পূর্ববর্তী বছরের জের ({openingList.map(o => o.year ? toBn(o.year) : '').filter(Boolean).join(', ') || 'আগের'}) — ব্যালেন্সে যোগ আছে</span>
-                                        <span className="font-bold text-blue-700">{stats.openingTotal < 0 ? '- ' : ''}৳ {Math.abs(stats.openingTotal).toLocaleString()}</span>
-                                    </div>
-                                )}
-                            </div>
-                            )}
-                    </div>
-
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-gray-900">Quick Access</h3>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => { setEditTarget('add_notice'); setShowEditPinModal(true); }} 
-                                className={`w-8 h-8 rounded-full ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center shadow-sm`} 
-                                title="নোটিশ যোগ করুন"
-                            >
-                                <i className="fas fa-bullhorn text-sm"></i>
-                            </button>
-                            <button 
-                                onClick={() => { setEditTarget('add_expense'); setShowEditPinModal(true); }} 
-                                className={`w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shadow-sm`} 
-                                title="খরচ যোগ করুন"
-                            >
-                                <i className="fas fa-minus-circle text-sm"></i>
-                            </button>
-                            <button 
-                                onClick={() => { setEditTarget('add_event'); setShowEditPinModal(true); }} 
-                                className={`w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm`} 
-                                title="নতুন প্রোগ্রাম যোগ করুন"
-                            >
-                                <i className="fas fa-calendar-plus text-sm"></i>
+                            <button onClick={() => copyText(acc.number)} className="px-3 py-1.5 rounded-lg bg-white text-pink-600 text-xs font-bold shadow-sm active:scale-95 transition-transform">
+                                <i className="far fa-copy mr-1"></i>কপি
                             </button>
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div onClick={() => setShowAboutUs(true)} className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-50 cursor-pointer hover:shadow-md transition-shadow">
-                            <div className={`w-10 h-10 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-lg mb-3`}>
-                                <i className="fas fa-info-circle"></i>
-                            </div>
-                            <h4 className="font-semibold text-gray-800">About Us</h4>
-                            <p className="text-xs text-gray-400 mt-1">Bondhan Info</p>
-                        </div>
-                        <a href="https://sites.google.com/view/bondhon17/gallery?authuser=0" target="_blank" className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-50 block cursor-pointer hover:shadow-md transition-shadow">
-                            <div className={`w-10 h-10 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-lg mb-3`}>
-                                <i className="fas fa-images"></i>
-                            </div>
-                            <h4 className="font-semibold text-gray-800">Gallery</h4>
-                            <p className="text-xs text-gray-400 mt-1">Event Photos</p>
-                        </a>
-                    </div>
-
-                    <div onClick={() => { setExpandedEventId(null); setShowEvents(true); }} className="mb-4 bg-white rounded-[20px] p-4 shadow-sm border border-gray-50 cursor-pointer hover:shadow-md transition-shadow flex items-center gap-4">
-                        <div className={`w-11 h-11 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center text-lg flex-shrink-0`}>
-                            <i className="fas fa-calendar-check"></i>
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-semibold text-gray-800">Events</h4>
-                            <p className="text-xs text-gray-400 mt-0.5">আমাদের কার্যক্রম ও প্রোগ্রামসমূহ</p>
-                        </div>
-                        <i className="fas fa-chevron-right text-gray-300"></i>
-                    </div>
-                    
-                    <div onClick={() => setShowJoinForm(true)} className={`mb-8 bg-gradient-to-r ${currentTheme.gradient} text-white rounded-[20px] p-4 flex items-center justify-between cursor-pointer shadow-md hover:shadow-lg transition-all`}>
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl">
-                                <i className="fas fa-user-plus"></i>
-                            </div>
-                            <div>
-                                <h4 className="font-bold">সদস্য হতে চান?</h4>
-                                <p className="text-xs opacity-90 mt-0.5">এখানে ক্লিক করে আবেদন করুন</p>
-                            </div>
-                        </div>
-                        <i className="fas fa-chevron-right opacity-80"></i>
-                    </div>
-
-                    <div className={`bg-gradient-to-br ${currentTheme.bgLight} to-white rounded-[24px] p-6 text-center border ${currentTheme.border}`}>
-                        <div className={`w-12 h-12 ${currentTheme.primary} text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-md`}>
-                            <i className="fas fa-users text-lg"></i>
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">Total Members</h3>
-                        <p className={`${currentTheme.accent} text-sm mb-4 font-medium`}>
-                            Currently {membersData.length} Active Members
-                        </p>
-                        <button 
-                            onClick={() => setActiveTab('members')} 
-                            className={`${currentTheme.primary} ${currentTheme.hover} text-white w-full py-3 rounded-xl font-semibold shadow-md transition-colors`}
-                        >
-                            View Directory &rarr;
-                        </button>
-                    </div>
+                    ))}
+                    {due > 0 && <p className="text-[11px] text-gray-500 mt-2">বকেয়া চাঁদা: <b className="text-rose-500">৳ {fmtMoney(due)}</b></p>}
                 </div>
             );
+
+            // ---- সদস্যের তথ্যের ফিল্ডগুলো (নতুন সদস্য ও এডিট ফর্মে একই) ----
+            const renderMemberFields = (data, setData, isNew) => {
+                const fld = (label, key, opts = {}) => (
+                    <div key={key}>
+                        <label className="text-xs font-semibold text-gray-500 mb-1 block">{label}</label>
+                        {opts.textarea ? (
+                            <textarea rows="2" value={data[key] ?? ''} onChange={(e) => setData({ ...data, [key]: e.target.value })} placeholder={opts.placeholder || ''} className={inputCls}></textarea>
+                        ) : (
+                            <input type={opts.type || 'text'} inputMode={opts.inputMode} list={opts.list} value={data[key] ?? ''} onChange={(e) => setData({ ...data, [key]: e.target.value })} placeholder={opts.placeholder || ''} className={inputCls} />
+                        )}
+                    </div>
+                );
+                return (
+                    <div className="space-y-3 text-left">
+                        {isNew && (
+                            <div>
+                                <label className="text-xs font-semibold text-gray-500 mb-1 block">কোন বছরের তালিকায় যুক্ত হবে</label>
+                                <select value={data.year} onChange={(e) => setData({ ...data, year: Number(e.target.value) })} className={inputCls}>
+                                    {YEARS.map(y => (<option key={y} value={y}>{y}</option>))}
+                                </select>
+                            </div>
+                        )}
+                        {isNew && fld('সদস্য আইডি *', 'id', { placeholder: 'যেমন: BS-170601' })}
+                        {fld('নাম *', 'name')}
+                        <div>
+                            <label className="text-xs font-semibold text-gray-500 mb-1 block">স্ট্যাটাস</label>
+                            <select value={data.status} onChange={(e) => setData({ ...data, status: e.target.value })} className={inputCls}>
+                                <option value="PM">PM (Permanent Member)</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        {fld('পিতার নাম', 'fatherName')}
+                        {fld('জন্ম তারিখ', 'dob', { placeholder: 'যেমন: 15-Mar-1990' })}
+                        {fld('রক্তের গ্রুপ', 'blood', { list: 'bloodList', placeholder: 'যেমন: B(+)' })}
+                        <div>
+                            <label className="text-xs font-semibold text-gray-500 mb-1 block">যোগদানের তারিখ (Joining Date)</label>
+                            <input type="date" value={dateToISO(data.joiningDate)} onChange={(e) => setData({ ...data, joiningDate: e.target.value ? isoToLongDate(e.target.value) : '' })} className={inputCls} />
+                        </div>
+                        {fld('পেশা', 'occupation')}
+                        {fld('ঠিকানা', 'address', { textarea: true })}
+                        {fld('এনআইডি নম্বর', 'nid', { inputMode: 'numeric' })}
+                        {fld('মোবাইল নম্বর', 'mobile1', { inputMode: 'tel' })}
+                        {fld('ইমেইল', 'email', { type: 'email' })}
+                        {isNew && fld('মাসিক চাঁদার পরিমাণ (৳)', 'monthlySubscription', { type: 'number', inputMode: 'numeric', placeholder: 'যেমন: 100' })}
+                        <datalist id="bloodList">{BLOOD_GROUPS.map(b => (<option key={b} value={b} />))}</datalist>
+                    </div>
+                );
+            };
+
+            const submitProfile = async () => {
+                const sm = membersData.find(m => m.id === editData.id);
+                if (!sm) return;
+                if (!(editData.name || '').trim()) { showToast('নাম দিন!', 'error'); return; }
+                const keys = ['status', 'name', 'fatherName', 'dob', 'blood', 'address', 'occupation', 'nid', 'mobile1', 'email', 'joiningDate'];
+                const fields = {};
+                keys.forEach(k => {
+                    const nv = (editData[k] ?? '').toString().trim();
+                    const ov = k === 'status' ? (getStatusInfo(sm.status).label || '') : (sm[k] ?? '').toString().trim();
+                    if (nv !== ov) fields[k] = nv;
+                });
+                if (Object.keys(fields).length === 0) { showToast('কোনো পরিবর্তন করা হয়নি'); setShowProfileEditForm(false); return; }
+                const memberId = editData.id;
+                const ok = await performUpdate({ id: memberId, updateType: 'profile', fields }, 'সদস্যের তথ্য আপডেট হয়েছে!');
+                if (ok) {
+                    setYearData(prev => {
+                        const out = {};
+                        Object.keys(prev).forEach(y => { out[y] = prev[y].map(m => m.id === memberId ? { ...m, ...fields } : m); });
+                        return out;
+                    });
+                }
+            };
+
+            const submitNewMember = async () => {
+                const d = newMemberData;
+                const id = (d.id || '').trim();
+                const name = (d.name || '').trim();
+                const year = Number(d.year) || selectedYear;
+                if (!id) { showToast('সদস্য আইডি দিন!', 'error'); return; }
+                if (!name) { showToast('সদস্যের নাম দিন!', 'error'); return; }
+                if ((yearData[year] || []).some(m => (m.id || '').toLowerCase() === id.toLowerCase())) { showToast(`এই আইডি ${year} সালের তালিকায় আগেই আছে!`, 'error'); return; }
+                const member = {
+                    id, name, status: d.status || 'Active',
+                    fatherName: (d.fatherName || '').trim(), dob: (d.dob || '').trim(), blood: (d.blood || '').trim(),
+                    address: (d.address || '').trim(), occupation: (d.occupation || '').trim(), nid: (d.nid || '').trim(),
+                    mobile1: (d.mobile1 || '').trim(), email: (d.email || '').trim(), joiningDate: (d.joiningDate || '').trim(),
+                    monthlySubscription: (d.monthlySubscription ?? '').toString().trim()
+                };
+                const ok = await performUpdate({ updateType: 'add_member', year, member }, 'নতুন সদস্য যুক্ত হয়েছে!');
+                if (ok) {
+                    const sub = parseFloat(member.monthlySubscription) || 0;
+                    const nm = { ...member, monthlySubscription: sub, monthlyPaidTotal: 0, donation: 0, totalYearly: 0, expectedYearly: sub * 12, unpaid: sub * 12 };
+                    months.forEach(mo => { nm[mo] = '0'; });
+                    setYearData(prev => ({ ...prev, [year]: [...(prev[year] || []), nm] }));
+                }
+            };
+
+            const renderDonations = () => {
+                const memberOpts = [];
+                const eventOpts = [];
+                const seenM = {};
+                const seenE = {};
+                donationsList.forEach(d => {
+                    if (!seenM[d.memberId]) { seenM[d.memberId] = 1; memberOpts.push({ id: d.memberId, name: d.memberName || d.memberId }); }
+                    const en = (d.eventName || '').trim();
+                    if (en && !seenE[normName(en)]) { seenE[normName(en)] = 1; eventOpts.push(en); }
+                });
+                memberOpts.sort((a, b) => a.name.localeCompare(b.name));
+
+                const list = donationsList
+                    .map((d, i) => ({ ...d, dt: parseAnyDate(d.date), order: i }))
+                    .filter(d => (!donFilterMember || d.memberId === donFilterMember) && (!donFilterEvent || normName(d.eventName) === normName(donFilterEvent)))
+                    .sort((a, b) => ((b.dt ? b.dt.getTime() : 0) - (a.dt ? a.dt.getTime() : 0)) || (b.order - a.order));
+                const total = list.reduce((a, d) => a + d.amount, 0);
+                const donorCount = new Set(list.map(d => d.memberId)).size;
+                const filtered = !!(donFilterMember || donFilterEvent);
+
+                return (
+                    <div className="animate-slide-up pb-32">
+                        <div className={`bg-gradient-to-br ${currentTheme.gradient} text-white rounded-b-[32px] px-5 pt-5 pb-6 shadow-lg`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => setActiveTab('home')} className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center"><i className="fas fa-arrow-left text-sm"></i></button>
+                                    <h1 className="text-lg font-bold">ডোনেশন</h1>
+                                </div>
+                                <button onClick={() => { setEditTarget('donation_new'); setShowEditPinModal(true); }} className="px-4 h-9 rounded-full bg-white text-sm font-bold flex items-center gap-2 shadow active:scale-95 transition-transform" style={{ color: currentTheme.hex }}>
+                                    <i className="fas fa-plus text-xs"></i> ডোনেশন যোগ
+                                </button>
+                            </div>
+                            <p className="mt-5 text-sm text-white/85">{filtered ? 'ফিল্টার করা মোট ডোনেশন' : 'মোট ডোনেশন'}</p>
+                            <h2 className="text-4xl font-bold mt-1 tracking-tight">৳ {isAuthorized ? fmtMoney(total) : '****'}</h2>
+                            {isAuthorized && <p className="text-[11px] text-white/80 mt-1">{toBn(list.length)} টি ডোনেশন · {toBn(donorCount)} জন দাতা</p>}
+                        </div>
+
+                        <div className="px-4 mt-5">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[11px] font-semibold text-gray-500 mb-1 block"><i className="far fa-user mr-1"></i>ব্যক্তি</label>
+                                    <select value={donFilterMember} onChange={(e) => setDonFilterMember(e.target.value)} className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-emerald-500 shadow-sm">
+                                        <option value="">সবাই</option>
+                                        {memberOpts.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-semibold text-gray-500 mb-1 block"><i className="far fa-calendar-check mr-1"></i>ইভেন্ট</label>
+                                    <select value={donFilterEvent} onChange={(e) => setDonFilterEvent(e.target.value)} className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-emerald-500 shadow-sm">
+                                        <option value="">সব ইভেন্ট</option>
+                                        {eventOpts.map(ev => (<option key={ev} value={ev}>{ev}</option>))}
+                                    </select>
+                                </div>
+                            </div>
+                            {filtered && (
+                                <button onClick={() => { setDonFilterMember(''); setDonFilterEvent(''); }} className={`mt-2 text-xs font-semibold ${currentTheme.accent}`}><i className="fas fa-times-circle mr-1"></i>ফিল্টার মুছুন</button>
+                            )}
+                        </div>
+
+                        <div className="px-4 mt-4">
+                            {!isAuthorized ? (
+                                <button onClick={() => setShowAuthModal(true)} className="w-full bg-white rounded-2xl p-6 text-center border border-dashed border-gray-200">
+                                    <i className="fas fa-lock text-gray-300 text-2xl mb-2"></i>
+                                    <p className="text-sm font-semibold text-gray-600">ডোনেশনের তালিকা দেখতে আনলক করুন</p>
+                                </button>
+                            ) : list.length === 0 ? (
+                                <div className="bg-white rounded-2xl p-6 text-center border border-gray-50 text-sm text-gray-400">কোনো ডোনেশন পাওয়া যায়নি</div>
+                            ) : (
+                                <div className="space-y-2.5">
+                                    {list.map((d, i) => (
+                                        <div key={i} className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm border border-gray-50">
+                                            <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0"><i className="fas fa-hand-holding-heart"></i></div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-gray-800 text-sm truncate">{d.memberName || d.memberId}</p>
+                                                <p className="text-[11px] text-gray-400 mt-0.5 truncate"><i className="far fa-clock mr-1"></i>{d.dt ? fmtBnDate(d.dt) : d.date}{d.eventName ? ' · ' + d.eventName : ''}</p>
+                                            </div>
+                                            <p className="font-bold text-sm text-emerald-600 flex-shrink-0">+৳{fmtMoney(d.amount)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            const cycleTheme = () => {
+                const keys = Object.keys(themeStyles);
+                setTheme(keys[(keys.indexOf(theme) + 1) % keys.length]);
+            };
+
+            const renderHome = () => {
+                const inPeriod = (t) => allYears || t.year === selectedYear;
+                const periodTx = transactions.filter(inPeriod);
+                const feed = periodTx.filter(t => txFilter === 'all' || t.kind === txFilter);
+                const visibleFeed = showAllTx ? feed : feed.slice(0, 8);
+                const mask = (v) => isAuthorized ? v : '****';
+
+                const periodTabs = [
+                    ...YEARS.map(y => ({ key: y, label: toBn(y), active: !allYears && selectedYear === y, onClick: () => { setSelectedYear(y); setAllYears(false); setShowAllTx(false); } })),
+                    { key: 'all', label: 'সব', active: allYears, onClick: () => { setAllYears(true); setShowAllTx(false); } }
+                ];
+                const goPin = (target) => () => { setEditTarget(target); setShowEditPinModal(true); };
+                const quick = [
+                    { icon: 'fa-hand-holding-heart', label: 'ডোনেশন', tint: 'bg-emerald-50 text-emerald-600', onClick: () => setActiveTab('donations') },
+                    { icon: 'fa-minus', label: 'খরচ', tint: 'bg-rose-50 text-rose-600', onClick: goPin('add_expense') },
+                    { icon: 'fa-bullhorn', label: 'নোটিশ', tint: currentTheme.bgLight + ' ' + currentTheme.accent, onClick: goPin('add_notice') },
+                    { icon: 'fa-calendar-plus', label: 'প্রোগ্রাম', tint: 'bg-blue-50 text-blue-600', onClick: goPin('add_event') },
+                    { icon: 'fa-calendar-check', label: 'কার্যক্রম', tint: 'bg-amber-50 text-amber-600', onClick: () => { setExpandedEventId(null); setShowEvents(true); } },
+                    { icon: 'fa-user-plus', label: 'নতুন সদস্য', tint: 'bg-violet-50 text-violet-600', onClick: goPin('add_member') }
+                ];
+                const chips = [
+                    { k: 'all', l: 'সব', n: periodTx.length },
+                    { k: 'donation', l: 'ডোনেশন', n: periodTx.filter(t => t.kind === 'donation').length },
+                    { k: 'expense', l: 'খরচ', n: periodTx.filter(t => t.kind === 'expense').length }
+                ];
+
+                return (
+                    <div className="animate-slide-up pb-32">
+                        {/* ===== Hero ===== */}
+                        <div className={`bg-gradient-to-br ${currentTheme.gradient} text-white rounded-b-[32px] px-5 pt-5 pb-6 shadow-lg`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-lg">ব</div>
+                                    <div>
+                                        <h1 className="text-lg font-bold leading-tight">বন্ধন</h1>
+                                        <p className="text-[11px] text-white/80 leading-tight">{greeting}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={cycleTheme} title="থিম বদলান" className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                                        <i className="fas fa-palette text-sm"></i>
+                                    </button>
+                                    <button onClick={() => setShowNotices(true)} title="নোটিশ" className="relative w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                                        <i className="far fa-bell text-sm"></i>
+                                        {notices.length > 0 && (
+                                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 border-2 border-white rounded-full text-[10px] font-bold flex items-center justify-center">{notices.length}</span>
+                                        )}
+                                    </button>
+                                    <button onClick={() => isAuthorized ? setIsAuthorized(false) : setShowAuthModal(true)} title={isAuthorized ? 'লক করুন' : 'আনলক করুন'} className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                                        <i className={`fas ${isAuthorized ? 'fa-unlock-alt' : 'fa-lock'} text-sm`}></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p className="mt-6 text-sm text-white/85"><i className="fas fa-wallet text-xs mr-2"></i>মোট ব্যালেন্স</p>
+                            <h2 className="text-4xl font-bold mt-1 tracking-tight">৳ {isAuthorized ? fmtMoney(stats.currentBalance) : '****'}</h2>
+                            {isAuthorized && stats.openingTotal !== 0 && (
+                                <p className="text-[11px] text-white/80 mt-1"><i className="fas fa-history mr-1"></i>পূর্ববর্তী বছরের জের ({openingList.map(o => o.year ? toBn(o.year) : '').filter(Boolean).join(', ') || 'আগের'}) সহ</p>
+                            )}
+                            {!isAuthorized && <p className="text-[11px] text-white/80 mt-1">দেখতে ওপরের 🔒 দিয়ে আনলক করুন</p>}
+
+                            <div className="mt-5 bg-white/15 rounded-3xl p-3">
+                                <div className="flex bg-white/20 rounded-full p-1">
+                                    {periodTabs.map(t => (
+                                        <button key={t.key} onClick={t.onClick} className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all ${t.active ? 'bg-white shadow ' + currentTheme.accent : 'text-white/90'}`}>{t.label}</button>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 mt-3">
+                                    <div className="bg-white rounded-2xl p-3">
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                                            <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center"><i className="fas fa-arrow-down text-[9px]"></i></span>আয়
+                                        </div>
+                                        <p className="text-lg font-bold text-emerald-600 mt-1">৳ {isAuthorized ? fmtMoney(stats.displayIncome) : '****'}</p>
+                                    </div>
+                                    <button onClick={() => isAuthorized ? setShowExpenseList(true) : setShowAuthModal(true)} className="bg-white rounded-2xl p-3 text-left active:scale-[0.98] transition-transform">
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                                            <span className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center"><i className="fas fa-arrow-up text-[9px]"></i></span>ব্যয়
+                                            <i className="fas fa-chevron-right text-[9px] opacity-50 ml-auto"></i>
+                                        </div>
+                                        <p className="text-lg font-bold text-rose-500 mt-1">৳ {isAuthorized ? fmtMoney(stats.displayExpense) : '****'}</p>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ===== Collection progress ===== */}
+                        <div className="px-4 mt-5">
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50">
+                                <div className="flex justify-between items-center text-xs mb-2">
+                                    <span className="font-semibold text-gray-600">চাঁদা সংগ্রহের অগ্রগতি ({allYears ? 'সব বছর' : toBn(selectedYear)})</span>
+                                    <span className={`font-bold ${currentTheme.accent}`}>{isAuthorized ? stats.percentage : '**'}%</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                    <div className={`h-full rounded-full ${currentTheme.primary} transition-all duration-700`} style={{ width: `${isAuthorized ? Math.min(100, stats.percentage) : 0}%` }}></div>
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-2">টার্গেট: ৳ {isAuthorized ? fmtMoney(stats.displayExpected) : '****'}</p>
+                            </div>
+                        </div>
+
+                        {/* ===== Payment ===== */}
+                        <div className="px-4 mt-5">{renderPayCard(0)}</div>
+
+                        {/* ===== Quick actions ===== */}
+                        <div className="px-4 mt-5">
+                            <div className="grid grid-cols-3 gap-3">
+                                {quick.map(q => (
+                                    <button key={q.label} onClick={q.onClick} className="flex flex-col items-center gap-2 bg-white rounded-2xl py-3.5 shadow-sm border border-gray-50 active:scale-95 transition-transform">
+                                        <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg ${q.tint}`}><i className={`fas ${q.icon}`}></i></span>
+                                        <span className="text-[11px] font-semibold text-gray-700">{q.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* ===== Recent transactions ===== */}
+                        <div className="px-4 mt-6">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-base font-bold text-gray-900">সাম্প্রতিক লেনদেন</h3>
+                                {isAuthorized && <span className="text-xs text-gray-400">{toBn(feed.length)} টি</span>}
+                            </div>
+                            <div className="flex gap-2 mb-3 overflow-x-auto no-scrollbar">
+                                {chips.map(c => (
+                                    <button key={c.k} onClick={() => { setTxFilter(c.k); setShowAllTx(false); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${txFilter === c.k ? currentTheme.primary + ' text-white shadow-sm' : 'bg-white border border-gray-100 text-gray-500'}`}>
+                                        {c.l}{isAuthorized ? ' ' + toBn(c.n) : ''}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {!isAuthorized ? (
+                                <button onClick={() => setShowAuthModal(true)} className="w-full bg-white rounded-2xl p-6 text-center border border-dashed border-gray-200">
+                                    <i className="fas fa-lock text-gray-300 text-2xl mb-2"></i>
+                                    <p className="text-sm font-semibold text-gray-600">লেনদেন দেখতে আনলক করুন</p>
+                                </button>
+                            ) : feed.length === 0 ? (
+                                <div className="bg-white rounded-2xl p-6 text-center border border-gray-50 text-sm text-gray-400">এই সময়ে কোনো লেনদেন নেই</div>
+                            ) : (
+                                <div className="space-y-2.5">
+                                    {visibleFeed.map((t, i) => {
+                                        const isDon = t.kind === 'donation';
+                                        return (
+                                            <div key={i} className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm border border-gray-50">
+                                                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${isDon ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
+                                                    <i className={`fas ${isDon ? 'fa-hand-holding-heart' : 'fa-receipt'}`}></i>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold text-gray-800 text-sm truncate">{t.title}</p>
+                                                    <p className="text-[11px] text-gray-400 mt-0.5 truncate"><i className="far fa-clock mr-1"></i>{t.date ? fmtBnDate(t.date) : t.rawDate}{t.sub ? ' · ' + t.sub : ''}</p>
+                                                </div>
+                                                <div className="text-right flex-shrink-0">
+                                                    <p className={`font-bold text-sm ${isDon ? 'text-emerald-600' : 'text-rose-500'}`}>{isDon ? '+' : '-'}৳{fmtMoney(t.amount)}</p>
+                                                    <span className={`inline-block mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${isDon ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>{isDon ? 'ডোনেশন' : 'খরচ'}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {feed.length > 8 && (
+                                        <button onClick={() => setShowAllTx(!showAllTx)} className={`w-full py-2.5 text-xs font-semibold ${currentTheme.accent}`}>
+                                            {showAllTx ? 'কম দেখান' : `আরও দেখুন (${toBn(feed.length - 8)})`}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ===== More ===== */}
+                        <div className="px-4 mt-6">
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div onClick={() => setShowAboutUs(true)} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 cursor-pointer active:scale-[0.98] transition-transform flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center`}><i className="fas fa-info-circle"></i></div>
+                                    <div><h4 className="font-semibold text-gray-800 text-sm">About Us</h4><p className="text-[11px] text-gray-400">Bondhan Info</p></div>
+                                </div>
+                                <a href="https://sites.google.com/view/bondhon17/gallery?authuser=0" target="_blank" className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 cursor-pointer active:scale-[0.98] transition-transform flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center`}><i className="fas fa-images"></i></div>
+                                    <div><h4 className="font-semibold text-gray-800 text-sm">Gallery</h4><p className="text-[11px] text-gray-400">Event Photos</p></div>
+                                </a>
+                            </div>
+
+                            <div onClick={() => setShowJoinForm(true)} className={`mb-3 bg-gradient-to-r ${currentTheme.gradient} text-white rounded-2xl p-4 flex items-center justify-between cursor-pointer shadow-md active:scale-[0.99] transition-transform`}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-lg"><i className="fas fa-user-plus"></i></div>
+                                    <div>
+                                        <h4 className="font-bold">সদস্য হতে চান?</h4>
+                                        <p className="text-xs opacity-90 mt-0.5">এখানে ক্লিক করে আবেদন করুন</p>
+                                    </div>
+                                </div>
+                                <i className="fas fa-chevron-right opacity-80"></i>
+                            </div>
+
+                            <div onClick={() => setActiveTab('members')} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 cursor-pointer active:scale-[0.99] transition-transform flex items-center gap-3">
+                                <div className={`w-11 h-11 ${currentTheme.primary} text-white rounded-full flex items-center justify-center shadow-md`}><i className="fas fa-users"></i></div>
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-gray-800">মোট সদস্য: {toBn(membersData.length)} জন</h4>
+                                    <p className={`text-xs mt-0.5 ${currentTheme.accent}`}>সদস্য তালিকা দেখুন</p>
+                                </div>
+                                <i className="fas fa-chevron-right text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
 
             const renderMembers = () => (
                 <div className="p-6 pt-2 animate-slide-up pb-28">
@@ -1134,9 +1489,9 @@
 
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-gray-900">Member Directory</h3>
-                        <div className={`flex items-center gap-1 ${currentTheme.accent} text-sm font-medium cursor-pointer`}>
-                            Sort by <i className="fas fa-chevron-down text-xs ml-1"></i>
-                        </div>
+                        <button onClick={() => { setEditTarget('add_member'); setShowEditPinModal(true); }} className={`flex items-center gap-1.5 ${currentTheme.primary} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm active:scale-95 transition-transform`}>
+                            <i className="fas fa-user-plus"></i> নতুন সদস্য
+                        </button>
                     </div>
 
                     {renderYearSwitcher()}
@@ -1157,7 +1512,7 @@
                                     <h4 className="font-semibold text-gray-800 text-base">{member.name}</h4>
                                     <p className="text-xs text-gray-500 mt-0.5">{member.id} • {member.occupation || 'Member'}</p>
                                 </div>
-                                <div className="text-right">
+                                <div className="text-right cursor-pointer" onClick={(e) => { e.stopPropagation(); setBreakdownMemberId(member.id); }}>
                                     <p className="text-xs font-semibold text-gray-800">৳ {member.totalYearly}</p>
                                     <p className="text-[10px] text-gray-400 mt-0.5">Paid</p>
                                 </div>
@@ -1220,7 +1575,7 @@
                                 <div className="flex justify-between items-end mb-2">
                                     <div>
                                         <p className="text-xs text-gray-400 font-medium">TOTAL PAID ({selectedYear})</p>
-                                        <p className="text-2xl font-bold text-gray-900">৳ {selectedMember.totalYearly}</p>
+                                        <button onClick={() => setBreakdownMemberId(selectedMember.id)} className="text-left active:opacity-70"><span className="block text-2xl font-bold text-gray-900">৳ {selectedMember.totalYearly}</span><span className={`block text-[10px] font-semibold ${currentTheme.accent}`}>কোথা থেকে কত? <i className="fas fa-chevron-right text-[8px] ml-0.5"></i></span></button>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs text-gray-400 font-medium">MONTHLY DUE</p>
@@ -1253,6 +1608,8 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div className="mb-6">{renderPayCard(selectedMember.unpaid)}</div>
 
                             <div className="flex items-center justify-between mb-3 mt-6">
                                 <h3 className="text-lg font-bold text-gray-900">
@@ -1307,6 +1664,12 @@
 
                             <h3 className="text-lg font-bold text-gray-900 mb-3 mt-6">Personal Info</h3>
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 space-y-4">
+                                {selectedMember.joiningDate && (
+                                    <div className="flex justify-between border-b border-gray-50 pb-2">
+                                        <span className="text-gray-500 text-sm">Joining Date</span>
+                                        <span className="font-medium text-sm text-gray-800">{parseAnyDate(selectedMember.joiningDate) ? fmtBnDate(parseAnyDate(selectedMember.joiningDate)) : selectedMember.joiningDate}</span>
+                                    </div>
+                                )}
                                 {selectedMember.fatherName && (
                                     <div className="flex justify-between border-b border-gray-50 pb-2">
                                         <span className="text-gray-500 text-sm">Father Name</span>
@@ -1398,31 +1761,15 @@
                     {/* Edit Form Modals */}
                     {showProfileEditForm && (
                         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
-                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
                                 <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
-                                    <i className={`fas fa-edit ${currentTheme.accent}`}></i> এডিট করুন: {editData.id}
+                                    <i className={`fas fa-edit ${currentTheme.accent}`}></i> সদস্যের তথ্য এডিট: {editData.id}
                                 </h2>
-                                <div className="space-y-4 text-left">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">নাম</label>
-                                        <input type="text" value={editData.name} onChange={(e) => setEditData({...editData, name: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">স্ট্যাটাস</label>
-                                        <select value={editData.status} onChange={(e) => setEditData({...editData, status: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors">
-                                            <option value="PM">PM (Permanent Member)</option>
-                                            <option value="Active">Active</option>
-                                            <option value="Inactive">Inactive</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">মোবাইল নম্বর</label>
-                                        <input type="text" value={editData.mobile1} onChange={(e) => setEditData({...editData, mobile1: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
-                                    </div>
-                                </div>
-                                <div className="flex gap-3 mt-8">
+                                {renderMemberFields(editData, setEditData, false)}
+                                <p className="text-[11px] text-gray-400 mt-3">তথ্য বদলালে সব বছরের তালিকায় একসাথে বদলে যাবে।</p>
+                                <div className="flex gap-3 mt-6">
                                     <button onClick={() => setShowProfileEditForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
-                                    <button onClick={() => performUpdate({...editData, updateType: 'profile'}, 'প্রোফাইল ডেটা আপডেট হয়েছে!')} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                    <button onClick={submitProfile} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                         {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'সেভ করুন'}
                                     </button>
                                 </div>
@@ -1430,31 +1777,56 @@
                         </div>
                     )}
 
-                    
+                    {showAddMemberForm && (
+                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+                                <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
+                                    <i className="fas fa-user-plus text-violet-600"></i> নতুন সদস্য যোগ করুন
+                                </h2>
+                                {renderMemberFields(newMemberData, setNewMemberData, true)}
+                                <div className="flex gap-3 mt-6">
+                                    <button onClick={() => setShowAddMemberForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                    <button onClick={submitNewMember} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                        {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'যোগ করুন'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {showDonationEditForm && (
                         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
-                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
                                 <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
-                                    <i className={`fas fa-hand-holding-heart ${currentTheme.accent}`}></i> ডোনেশন আপডেট: {donationData.id}
+                                    <i className={`fas fa-hand-holding-heart ${currentTheme.accent}`}></i> {donationData.pickMember ? 'নতুন ডোনেশন যোগ করুন' : 'ডোনেশন যোগ: ' + donationData.id}
                                 </h2>
                                 <div className="space-y-4 text-left">
+                                    {donationData.pickMember && (
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 mb-1 block">সদস্য (Directory থেকে)</label>
+                                            <select value={donationData.id} onChange={(e) => setDonationData({...donationData, id: e.target.value})} className={inputCls}>
+                                                <option value="">-- সদস্য নির্বাচন করুন --</option>
+                                                {allMembersList.map(m => (<option key={m.id} value={m.id}>{m.name} ({m.id})</option>))}
+                                            </select>
+                                        </div>
+                                    )}
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">ইভেন্ট (Event)</label>
-                                        <select value={donationData.eventId} onChange={(e) => setDonationData({...donationData, eventId: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">ডোনেশনের ধরন / ইভেন্ট</label>
+                                        <select value={donationData.eventId} onChange={(e) => setDonationData({...donationData, eventId: e.target.value})} className={inputCls}>
                                             <option value="">-- ইভেন্ট নির্বাচন করুন --</option>
                                             {eventsData.map((ev, i) => (<option key={i} value={String(i)}>{ev.name}{ev.date ? ` (${ev.date})` : ''}</option>))}
                                             <option value="__general__">{GENERAL_DONATION_LABEL}</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">ডোনেশনের পরিমাণ (৳)</label>
-                                        <input type="number" inputMode="numeric" min="0" value={donationData.amount} onChange={(e) => setDonationData({...donationData, amount: e.target.value})} placeholder="যেমন: ৫০০" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
-                                        <p className="text-[11px] text-gray-400 mt-1">এই পরিমাণ সদস্যের মোট ডোনেশনের সাথে যোগ হবে।</p>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">দানের তারিখ</label>
+                                        <input type="date" value={donationData.date} onChange={(e) => setDonationData({...donationData, date: e.target.value})} className={inputCls} />
+                                        <p className="text-[11px] text-gray-400 mt-1">তারিখের সাল অনুযায়ী ওই বছরের হিসাবে ডোনেশন জমা হবে।</p>
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">দানের তারিখ</label>
-                                        <input type="date" value={donationData.date} onChange={(e) => setDonationData({...donationData, date: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
-                                        <p className="text-[11px] text-gray-400 mt-1">তারিখের সাল অনুযায়ী ওই বছরের হিসাবে ডোনেশন জমা হবে।</p>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">ডোনেশনের পরিমাণ (৳)</label>
+                                        <input type="number" inputMode="numeric" min="0" value={donationData.amount} onChange={(e) => setDonationData({...donationData, amount: e.target.value})} placeholder="যেমন: ৫০০" className={inputCls} />
+                                        <p className="text-[11px] text-gray-400 mt-1">এই পরিমাণ সদস্যের মোট টাকার সাথে যোগ হবে।</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-3 mt-8">
@@ -1548,6 +1920,90 @@
                                     <button onClick={submitEvent} disabled={isUpdating || !newEventData.name} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${(isUpdating || !newEventData.name) ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                         {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : (editingEvent ? 'সেভ করুন' : 'যোগ করুন')}
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Total breakdown */}
+                    {breakdownMember && (
+                        <div className="fixed inset-0 z-[70] flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm p-4" onClick={() => setBreakdownMemberId(null)}>
+                            <div className="bg-white w-full max-w-md mx-auto rounded-3xl p-5 shadow-2xl animate-slide-up max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900">মোট টাকার হিসাব ({toBn(selectedYear)})</h3>
+                                        <p className="text-xs text-gray-400">{breakdownMember.name} · {breakdownMember.id}</p>
+                                    </div>
+                                    <button onClick={() => setBreakdownMemberId(null)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500"><i className="fas fa-times"></i></button>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <div className="flex justify-between items-center bg-emerald-50 rounded-xl px-4 py-3">
+                                        <span className="text-sm font-semibold text-emerald-700"><i className="fas fa-calendar-check mr-2"></i>বার্ষিক চাঁদা</span>
+                                        <span className="font-bold text-emerald-700">৳ {fmtMoney(breakdownMember.monthlyPaidTotal)}</span>
+                                    </div>
+                                    <div className="bg-blue-50 rounded-xl px-4 py-3">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-semibold text-blue-700"><i className="fas fa-hand-holding-heart mr-2"></i>বার্ষিক ডোনেশন</span>
+                                            <span className="font-bold text-blue-700">৳ {fmtMoney(breakdownMember.donation)}</span>
+                                        </div>
+                                        {(() => {
+                                            const byEvent = {};
+                                            donationsList.forEach(d => {
+                                                if (d.memberId === breakdownMember.id && Number(d.year) === selectedYear) {
+                                                    const k = (d.eventName || 'অন্যান্য').trim();
+                                                    byEvent[k] = (byEvent[k] || 0) + d.amount;
+                                                }
+                                            });
+                                            const rows = Object.keys(byEvent);
+                                            return rows.length > 0 ? (
+                                                <div className="mt-2 pt-2 border-t border-blue-100 space-y-1">
+                                                    {rows.map(k => (
+                                                        <div key={k} className="flex justify-between text-xs text-blue-600"><span className="truncate pr-3">{k}</span><span className="font-semibold whitespace-nowrap">৳ {fmtMoney(byEvent[k])}</span></div>
+                                                    ))}
+                                                </div>
+                                            ) : null;
+                                        })()}
+                                    </div>
+                                    <div className="flex justify-between items-center bg-gray-900 text-white rounded-xl px-4 py-3">
+                                        <span className="text-sm font-semibold">মোট</span>
+                                        <span className="font-bold text-lg">৳ {fmtMoney(breakdownMember.totalYearly)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-gray-500 px-1 pt-1">
+                                        <span>প্রত্যাশিত বার্ষিক চাঁদা: ৳ {fmtMoney(breakdownMember.expectedYearly)}</span>
+                                        <span>বকেয়া: <b className="text-rose-500">৳ {fmtMoney(breakdownMember.unpaid)}</b></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Quick Add Sheet */}
+                    {showQuickAdd && (
+                        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm p-4" onClick={() => setShowQuickAdd(false)}>
+                            <div className="bg-white w-full max-w-md mx-auto rounded-3xl p-5 shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-bold text-gray-900">দ্রুত যোগ করুন</h3>
+                                    <button onClick={() => setShowQuickAdd(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500"><i className="fas fa-times"></i></button>
+                                </div>
+                                <div className="space-y-2.5">
+                                    {[
+                                        { t: 'donation_new', icon: 'fa-hand-holding-heart', tint: 'bg-emerald-50 text-emerald-600', title: 'নতুন ডোনেশন', sub: 'সদস্য, ইভেন্ট ও তারিখ বেছে ডোনেশন যোগ করুন' },
+                                        { t: 'add_expense', icon: 'fa-minus', tint: 'bg-rose-50 text-rose-600', title: 'নতুন খরচ', sub: 'ইভেন্ট বা অন্যান্য খাতে খরচ লিখুন' },
+                                        { t: 'add_notice', icon: 'fa-bullhorn', tint: currentTheme.bgLight + ' ' + currentTheme.accent, title: 'নোটিশ', sub: 'সবাইকে জানাতে নোটিশ দিন' },
+                                        { t: 'add_event', icon: 'fa-calendar-plus', tint: 'bg-blue-50 text-blue-600', title: 'নতুন প্রোগ্রাম', sub: 'কার্যক্রমের তালিকায় প্রোগ্রাম যোগ করুন' },
+                                        { t: 'add_member', icon: 'fa-user-plus', tint: 'bg-violet-50 text-violet-600', title: 'নতুন সদস্য', sub: 'সদস্য তালিকায় নতুন সদস্য যোগ করুন' }
+                                    ].map(o => (
+                                        <button key={o.t} onClick={() => { setShowQuickAdd(false); setEditTarget(o.t); setShowEditPinModal(true); }} className="w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition text-left">
+                                            <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg ${o.tint}`}><i className={`fas ${o.icon}`}></i></span>
+                                            <span className="flex-1"><span className="block font-semibold text-gray-800 text-sm">{o.title}</span><span className="block text-[11px] text-gray-400">{o.sub}</span></span>
+                                            <i className="fas fa-chevron-right text-gray-300 text-xs"></i>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="mt-4 p-3 rounded-2xl bg-amber-50 text-[11px] text-amber-700 flex items-start gap-2">
+                                    <i className="fas fa-info-circle mt-0.5"></i>
+                                    <span>মাসিক চাঁদা যোগ করতে সদস্যের প্রোফাইল খুলুন।</span>
+                                    <button onClick={() => { setShowQuickAdd(false); setActiveTab('members'); }} className="ml-auto font-bold whitespace-nowrap underline">সদস্য তালিকা</button>
                                 </div>
                             </div>
                         </div>
@@ -1766,38 +2222,35 @@
 
                     {/* Main Application Routes */}
                     <div className="h-full overflow-y-auto no-scrollbar">
-                        {activeTab === 'home' && renderHeader('Home')}
                         {activeTab === 'members' && renderHeader('Directory')}
                         {activeTab === 'home' && renderHome()}
                         {activeTab === 'members' && renderMembers()}
+                        {activeTab === 'donations' && renderDonations()}
                         {activeTab === 'profile' && renderProfile()}
                     </div>
 
                     {/* Bottom Navigation */}
-                    <nav className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 flex justify-between px-8 py-3 pb-safe z-40 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-                        <button 
-                            onClick={() => setActiveTab('home')} 
-                            className={`flex flex-col items-center gap-1 w-16 transition-colors ${activeTab === 'home' ? currentTheme.accent : 'text-gray-400 hover:text-gray-600'}`}
-                        >
+                    <nav className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 flex items-end justify-between px-3 pt-2 pb-2 pb-safe z-40 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+                        <button onClick={() => setActiveTab('home')} className={`flex-1 flex flex-col items-center gap-1 py-1 transition-colors ${activeTab === 'home' ? currentTheme.accent : 'text-gray-400 hover:text-gray-600'}`}>
                             <i className={`text-xl ${activeTab === 'home' ? 'fas' : 'far'} fa-home`}></i>
-                            <span className="text-[10px] font-semibold">Home</span>
+                            <span className="text-[10px] font-semibold">হোম</span>
                         </button>
-                        <button 
-                            onClick={() => setActiveTab('members')} 
-                            className={`flex flex-col items-center gap-1 w-16 transition-colors ${activeTab === 'members' || activeTab === 'profile' ? currentTheme.accent : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <i className={`text-xl ${activeTab === 'members' || activeTab === 'profile' ? 'fas' : 'far'} fa-folder`}></i>
-                            <span className="text-[10px] font-semibold">Directory</span>
+                        <button onClick={() => setActiveTab('members')} className={`flex-1 flex flex-col items-center gap-1 py-1 transition-colors ${activeTab === 'members' || activeTab === 'profile' ? currentTheme.accent : 'text-gray-400 hover:text-gray-600'}`}>
+                            <i className={`text-xl ${activeTab === 'members' || activeTab === 'profile' ? 'fas' : 'far'} fa-address-book`}></i>
+                            <span className="text-[10px] font-semibold">সদস্য</span>
                         </button>
-                        <button 
-                            onClick={() => {
-                                fetchAllData(); 
-                                showToast('ডেটা রিফ্রেশ করা হচ্ছে...', 'info');
-                            }} 
-                            className="flex flex-col items-center gap-1 w-16 text-gray-400 hover:text-gray-600 transition-colors active:scale-90"
-                        >
+                        <div className="flex-1 flex justify-center">
+                            <button onClick={() => setShowQuickAdd(true)} title="দ্রুত যোগ করুন" className={`-mt-8 w-14 h-14 rounded-full ${currentTheme.primary} text-white shadow-lg ring-4 ring-white flex items-center justify-center active:scale-90 transition-transform`}>
+                                <i className="fas fa-plus text-xl"></i>
+                            </button>
+                        </div>
+                        <button onClick={() => { setActiveTab('home'); setExpandedEventId(null); setShowEvents(true); }} className="flex-1 flex flex-col items-center gap-1 py-1 text-gray-400 hover:text-gray-600 transition-colors">
+                            <i className="far fa-calendar-check text-xl"></i>
+                            <span className="text-[10px] font-semibold">কার্যক্রম</span>
+                        </button>
+                        <button onClick={() => { fetchAllData(); showToast('ডেটা রিফ্রেশ করা হচ্ছে...', 'info'); }} className="flex-1 flex flex-col items-center gap-1 py-1 text-gray-400 hover:text-gray-600 transition-colors active:scale-90">
                             <i className={`text-xl fas fa-sync-alt ${syncStatus === 'Syncing...' ? `fa-spin ${currentTheme.accent}` : ''}`}></i>
-                            <span className="text-[10px] font-semibold">Refresh</span>
+                            <span className="text-[10px] font-semibold">রিফ্রেশ</span>
                         </button>
                     </nav>
                 </div>
