@@ -1165,7 +1165,8 @@
                 const year = Number(d.year) || selectedYear;
                 if (!id) { showToast('সদস্য আইডি দিন!', 'error'); return; }
                 if (!name) { showToast('সদস্যের নাম দিন!', 'error'); return; }
-                if ((yearData[year] || []).some(m => (m.id || '').toLowerCase() === id.toLowerCase())) { showToast(`এই আইডি ${year} সালের তালিকায় আগেই আছে!`, 'error'); return; }
+                const dupMember = (yearData[year] || []).find(m => (m.id || '').toString().trim().toLowerCase() === id.toLowerCase());
+                if (dupMember) { showToast(`আইডি ${dupMember.id} ${year} সালের তালিকায় আগেই আছে (${dupMember.name || 'নামহীন'})। অন্য আইডি দিন।`, 'error'); return; }
                 const member = {
                     id, name, status: d.status || 'Active',
                     fatherName: (d.fatherName || '').trim(), dob: (d.dob || '').trim(), blood: (d.blood || '').trim(),
