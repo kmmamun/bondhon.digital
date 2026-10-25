@@ -258,6 +258,7 @@
             const [breakdownMemberId, setBreakdownMemberId] = useState(null);
             const [donFilterMember, setDonFilterMember] = useState('');
             const [donFilterEvent, setDonFilterEvent] = useState('');
+            const [donMemberQuery, setDonMemberQuery] = useState('');
 
             // সদস্যের ডোনেশন = Donations শিটে ওই সদস্যের ওই বছরের সব রেকর্ডের যোগফল
             const yearDataFull = useMemo(() => {
@@ -633,6 +634,7 @@
                                 nid: cells[9] || '', 
                                 mobile1: cells[10] || '', 
                                 email: cells[12] || '', 
+                                wardNo: cells[7] || '', 
                                 joiningDate: cells[14] || '', 
                                 monthlySubscription, 
                                 jan: cells[17] || '0', 
@@ -800,10 +802,11 @@
                         setNewEventData({ date: '', name: '', details: '' });
                         setShowAddEventForm(true);
                     } else if (editTarget === 'donation_new') {
+                        setDonMemberQuery('');
                         setDonationData({ id: '', pickMember: true, amount: '', eventId: '', date: todayISO() });
                         setShowDonationEditForm(true);
                     } else if (editTarget === 'add_member') {
-                        setNewMemberData({ year: selectedYear, id: '', name: '', status: 'Active', fatherName: '', dob: '', blood: '', address: '', occupation: '', nid: '', mobile1: '', email: '', joiningDate: isoToLongDate(todayISO()), monthlySubscription: '' });
+                        setNewMemberData({ year: selectedYear, id: '', name: '', status: 'Active', fatherName: '', dob: '', blood: '', address: '', occupation: '', nid: '', mobile1: '', email: '', joiningDate: isoToLongDate(todayISO()), wardNo: '', monthlySubscription: '' });
                         setShowAddMemberForm(true);
                     } else if (editTarget === 'edit_event') {
                         if (editingEvent) {
@@ -822,7 +825,7 @@
                         const sm = membersData.find(m => m.id === selectedMemberId);
                         if(sm) {
                             if (editTarget === 'profile') {
-                                setEditData({ id: sm.id, name: sm.name || '', status: getStatusInfo(sm.status).label || 'Active', fatherName: sm.fatherName || '', dob: sm.dob || '', blood: sm.blood || '', address: sm.address || '', occupation: sm.occupation || '', nid: sm.nid || '', mobile1: sm.mobile1 || '', email: sm.email || '', joiningDate: sm.joiningDate || '' }); 
+                                setEditData({ id: sm.id, name: sm.name || '', status: getStatusInfo(sm.status).label || 'Active', fatherName: sm.fatherName || '', dob: sm.dob || '', blood: sm.blood || '', address: sm.address || '', occupation: sm.occupation || '', nid: sm.nid || '', mobile1: sm.mobile1 || '', email: sm.email || '', joiningDate: sm.joiningDate || '', wardNo: sm.wardNo || '' }); 
                                 setShowProfileEditForm(true);
                             } else if (editTarget === 'payment') {
                                 const init = {}; months.forEach(mo => { init[mo] = parseFloat(sm[mo]) > 0 ? String(parseFloat(sm[mo])) : ''; }); setMonthEdits(init); setIsEditingMonths(true);
@@ -1126,6 +1129,7 @@
                         </div>
                         {fld('পেশা', 'occupation')}
                         {fld('ঠিকানা', 'address', { textarea: true })}
+                        {fld('ওয়ার্ড নম্বর (Ward No.)', 'wardNo', { inputMode: 'numeric' })}
                         {fld('এনআইডি নম্বর', 'nid', { inputMode: 'numeric' })}
                         {fld('মোবাইল নম্বর', 'mobile1', { inputMode: 'tel' })}
                         {fld('ইমেইল', 'email', { type: 'email' })}
@@ -1139,7 +1143,7 @@
                 const sm = membersData.find(m => m.id === editData.id);
                 if (!sm) return;
                 if (!(editData.name || '').trim()) { showToast('নাম দিন!', 'error'); return; }
-                const keys = ['status', 'name', 'fatherName', 'dob', 'blood', 'address', 'occupation', 'nid', 'mobile1', 'email', 'joiningDate'];
+                const keys = ['status', 'name', 'fatherName', 'dob', 'blood', 'address', 'occupation', 'nid', 'mobile1', 'email', 'joiningDate', 'wardNo'];
                 const fields = {};
                 keys.forEach(k => {
                     const nv = (editData[k] ?? '').toString().trim();
@@ -1171,7 +1175,7 @@
                     id, name, status: d.status || 'Active',
                     fatherName: (d.fatherName || '').trim(), dob: (d.dob || '').trim(), blood: (d.blood || '').trim(),
                     address: (d.address || '').trim(), occupation: (d.occupation || '').trim(), nid: (d.nid || '').trim(),
-                    mobile1: (d.mobile1 || '').trim(), email: (d.email || '').trim(), joiningDate: (d.joiningDate || '').trim(),
+                    mobile1: (d.mobile1 || '').trim(), email: (d.email || '').trim(), joiningDate: (d.joiningDate || '').trim(), wardNo: (d.wardNo || '').toString().trim(),
                     monthlySubscription: (d.monthlySubscription ?? '').toString().trim()
                 };
                 const ok = await performUpdate({ updateType: 'add_member', year, member }, 'নতুন সদস্য যুক্ত হয়েছে!');
@@ -1671,6 +1675,12 @@
                                         <span className="font-medium text-sm text-gray-800">{parseAnyDate(selectedMember.joiningDate) ? fmtBnDate(parseAnyDate(selectedMember.joiningDate)) : selectedMember.joiningDate}</span>
                                     </div>
                                 )}
+                                {selectedMember.wardNo && (
+                                    <div className="flex justify-between border-b border-gray-50 pb-2">
+                                        <span className="text-gray-500 text-sm">Ward No.</span>
+                                        <span className="font-medium text-sm text-gray-800">{selectedMember.wardNo}</span>
+                                    </div>
+                                )}
                                 {selectedMember.fatherName && (
                                     <div className="flex justify-between border-b border-gray-50 pb-2">
                                         <span className="text-gray-500 text-sm">Father Name</span>
@@ -1802,15 +1812,43 @@
                                     <i className={`fas fa-hand-holding-heart ${currentTheme.accent}`}></i> {donationData.pickMember ? 'নতুন ডোনেশন যোগ করুন' : 'ডোনেশন যোগ: ' + donationData.id}
                                 </h2>
                                 <div className="space-y-4 text-left">
-                                    {donationData.pickMember && (
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-500 mb-1 block">সদস্য (Directory থেকে)</label>
-                                            <select value={donationData.id} onChange={(e) => setDonationData({...donationData, id: e.target.value})} className={inputCls}>
-                                                <option value="">-- সদস্য নির্বাচন করুন --</option>
-                                                {allMembersList.map(m => (<option key={m.id} value={m.id}>{m.name} ({m.id})</option>))}
-                                            </select>
-                                        </div>
-                                    )}
+                                    {donationData.pickMember && (() => {
+                                        const picked = allMembersList.find(m => m.id === donationData.id);
+                                        const q = normName(donMemberQuery).toLowerCase();
+                                        const qId = q.replace(/[\s-]/g, '');
+                                        const matches = allMembersList.filter(m => !q || (m.name || '').toLowerCase().includes(q) || (m.id || '').toLowerCase().replace(/-/g, '').includes(qId)).slice(0, 30);
+                                        return (
+                                            <div>
+                                                <label className="text-xs font-semibold text-gray-500 mb-1 block">সদস্য (নাম বা আইডি লিখে খুঁজুন)</label>
+                                                {picked ? (
+                                                    <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                                                        <div className="min-w-0">
+                                                            <p className="font-semibold text-emerald-800 text-sm truncate">{picked.name}</p>
+                                                            <p className="text-[11px] text-emerald-600">{picked.id}</p>
+                                                        </div>
+                                                        <button onClick={() => { setDonationData({ ...donationData, id: '' }); setDonMemberQuery(''); }} className="w-7 h-7 rounded-full bg-white text-emerald-600 flex items-center justify-center flex-shrink-0" title="বদলান"><i className="fas fa-times text-xs"></i></button>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <div className="relative">
+                                                            <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                                            <input type="text" autoComplete="off" value={donMemberQuery} onChange={(e) => setDonMemberQuery(e.target.value)} placeholder="যেমন: Miraj বা 170602" className={inputCls + ' pl-10'} />
+                                                        </div>
+                                                        <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-50 bg-white">
+                                                            {matches.length === 0 ? (
+                                                                <p className="px-4 py-3 text-xs text-gray-400">কোনো সদস্য পাওয়া যায়নি</p>
+                                                            ) : matches.map(m => (
+                                                                <button key={m.id} onClick={() => { setDonationData({ ...donationData, id: m.id }); setDonMemberQuery(''); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 flex items-center justify-between gap-3">
+                                                                    <span className="text-sm font-semibold text-gray-800 truncate">{m.name}</span>
+                                                                    <span className="text-[11px] text-gray-400 whitespace-nowrap">{m.id}</span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">ডোনেশনের ধরন / ইভেন্ট</label>
                                         <select value={donationData.eventId} onChange={(e) => setDonationData({...donationData, eventId: e.target.value})} className={inputCls}>
