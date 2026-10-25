@@ -799,7 +799,7 @@
                         setShowAddExpenseForm(true);
                     } else if (editTarget === 'add_event') {
                         setEditingEvent(null);
-                        setNewEventData({ date: '', name: '', details: '' });
+                        setNewEventData({ date: isoToSheetDate(todayISO()), name: '', details: '' });
                         setShowAddEventForm(true);
                     } else if (editTarget === 'donation_new') {
                         setDonMemberQuery('');
@@ -1552,6 +1552,14 @@
                             <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50 text-center mb-6 relative overflow-hidden">
                                 <div className={`absolute top-0 left-0 w-full h-16 bg-gradient-to-r ${currentTheme.gradient} opacity-10`}></div>
                                 
+                                <button
+                                    onClick={() => setActiveTab('members')}
+                                    title="বন্ধ করুন"
+                                    className="absolute top-4 left-4 w-9 h-9 bg-white shadow-md rounded-full flex items-center justify-center text-gray-600 hover:text-rose-500 active:scale-90 transition z-20"
+                                >
+                                    <i className="fas fa-times text-sm"></i>
+                                </button>
+
                                 <button 
                                     onClick={() => { setEditTarget('profile'); setShowEditPinModal(true); }} 
                                     className="absolute top-4 right-4 w-9 h-9 bg-white shadow-md rounded-full flex items-center justify-center text-gray-600 hover:text-emerald-600 transition-colors z-20"
@@ -1946,8 +1954,8 @@
                                         <input type="text" value={newEventData.name} onChange={(e) => setNewEventData({...newEventData, name: e.target.value})} placeholder="যেমন: বৃক্ষরোপণ কর্মসূচি" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">{editingEvent ? 'তারিখ (Date) — ফাঁকা রাখলে আগের তারিখই থাকবে' : 'তারিখ (Date) — ফাঁকা রাখলে আজকের তারিখ বসবে'}</label>
-                                        <input type="text" value={newEventData.date} onChange={(e) => setNewEventData({...newEventData, date: e.target.value})} placeholder="যেমন: 15-Oct-26" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">তারিখ (Date)</label>
+                                        <input type="date" value={dateToISO(newEventData.date)} onChange={(e) => setNewEventData({...newEventData, date: e.target.value ? isoToSheetDate(e.target.value) : ''})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                                     </div>
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">বিস্তারিত (Details)</label>
