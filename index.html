@@ -85,6 +85,17 @@
         .toast-exit { 
             animation: toastSlideOut 0.3s forwards; 
         }
+    
+        /* চাঁদা পরিশোধ কার্ডের অ্যানিমেশন */
+        @keyframes payShine { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        @keyframes payPulse { 0% { box-shadow: 0 0 0 0 rgba(236,72,153,.45); } 70% { box-shadow: 0 0 0 12px rgba(236,72,153,0); } 100% { box-shadow: 0 0 0 0 rgba(236,72,153,0); } }
+        @keyframes payFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        @keyframes payWiggle { 0%, 88%, 100% { transform: rotate(0); } 91% { transform: rotate(-8deg); } 94% { transform: rotate(8deg); } 97% { transform: rotate(-4deg); } }
+        .pay-title { background: linear-gradient(90deg, #be185d, #ec4899, #f59e0b, #ec4899, #be185d); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; animation: payShine 3s linear infinite; font-weight: 700; }
+        .pay-icon { animation: payPulse 2s infinite; }
+        .pay-icon i { display: inline-block; animation: payFloat 2s ease-in-out infinite; }
+        .pay-copy { animation: payWiggle 4s ease-in-out infinite; transform-origin: center; }
+        @media (prefers-reduced-motion: reduce) { .pay-title, .pay-icon, .pay-icon i, .pay-copy { animation: none; } }
     </style>
 </head>
 <body>
@@ -131,6 +142,16 @@
             { name: 'বিকাশ', number: '01999708877' }
         ];
         const BLOOD_GROUPS = ['A(+)', 'A(-)', 'B(+)', 'B(-)', 'AB(+)', 'AB(-)', 'O(+)', 'O(-)'];
+        // ===== যোগাযোগ (ফুটারের প্যানেল) =====
+        // ঠিকানা বা ওয়েবসাইট বদলাতে/যোগ করতে এখানে লিখুন। ফাঁকা থাকলে ওই লাইন দেখানো হয় না।
+        const CONTACT = {
+            address: '',
+            phones: [{ label: 'Bondhon Contact', display: '+880 1999-708877', tel: '+8801999708877' }],
+            email: 'bondhon.bd17@gmail.com',
+            website: 'https://sites.google.com/view/bondhon17',
+            socials: [{ name: 'Facebook', icon: 'fab fa-facebook', url: 'https://www.facebook.com/bondhonikri.bd' }]
+        };
+        const INCOME_SOURCES = ['সাংগঠনিক আয়', 'প্রকল্প থেকে আয়', 'অনুদান / সাহায্য'];
         const EMPTY_LIST = [];
         const GENERAL_DONATION_LABEL = 'অন্যান্য (ইভেন্ট ছাড়া)';
         const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -165,6 +186,60 @@
             return `${d.getFullYear()}-${mm}-${dd}`;
         };
         const isoToLongDate = (iso) => { const [y, m, d] = iso.split('-'); return `${d}-${MONTH_ABBR[Number(m) - 1]}-${y}`; };
+        // সিস্টেমের ডিফল্ট ড্রপডাউনের বদলে সুন্দর পপআপ (বটম শিট), প্রয়োজনে সার্চসহ
+        const SmartSelect = ({ options, value, onChange, placeholder, title, className, searchable }) => {
+            const [open, setOpen] = useState(false);
+            const [query, setQuery] = useState('');
+            const selected = options.find(o => String(o.value) === String(value));
+            const showSearch = searchable !== undefined ? searchable : options.length > 7;
+            const norm = (t) => toEnDigits(t).toLowerCase();
+            const q = norm(query).trim();
+            const filtered = q ? options.filter(o => norm(o.label).includes(q) || norm(o.value).includes(q)) : options;
+            const hasValue = selected && String(selected.value) !== '';
+            const popup = open ? ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[95] flex items-end justify-center bg-gray-900/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+                    <div className="bg-white w-full max-w-md rounded-t-[28px] shadow-2xl animate-slide-up max-h-[78vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="pt-3 pb-1 flex justify-center"><span className="w-10 h-1.5 rounded-full bg-gray-200"></span></div>
+                        <div className="flex items-center justify-between px-5 pt-2 pb-3">
+                            <h3 className="text-base font-bold text-gray-900">{title || placeholder || 'নির্বাচন করুন'}</h3>
+                            <button type="button" onClick={() => setOpen(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500"><i className="fas fa-times text-sm"></i></button>
+                        </div>
+                        {showSearch && (
+                            <div className="px-5 pb-3">
+                                <div className="relative">
+                                    <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 text-sm"></i>
+                                    <input autoFocus type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="নাম বা আইডি লিখে খুঁজুন..." className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                                </div>
+                            </div>
+                        )}
+                        <div className="px-3 pb-5 overflow-y-auto flex-1 space-y-1">
+                            {filtered.length === 0 ? (
+                                <p className="text-center text-sm text-gray-400 py-8">কোনো ফলাফল পাওয়া যায়নি</p>
+                            ) : filtered.map(o => {
+                                const isSel = String(o.value) === String(value);
+                                return (
+                                    <button type="button" key={String(o.value)} onClick={() => { onChange(o.value); setOpen(false); }} className={`w-full flex items-center justify-between gap-3 text-left px-4 py-3 rounded-2xl text-sm transition-colors ${isSel ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'}`}>
+                                        <span className="min-w-0">
+                                            <span className="block truncate">{o.label}</span>
+                                            {o.sub ? <span className="block text-[11px] text-gray-400 font-normal truncate">{o.sub}</span> : null}
+                                        </span>
+                                        {isSel && <i className="fas fa-check-circle text-emerald-500"></i>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>, document.body) : null;
+            return (
+                <>
+                    <button type="button" onClick={() => { setQuery(''); setOpen(true); }} className={`${className} flex items-center justify-between gap-2 text-left`}>
+                        <span className={`truncate ${hasValue ? 'text-gray-800' : 'text-gray-400'}`}>{selected ? selected.label : (placeholder || 'নির্বাচন করুন')}</span>
+                        <i className="fas fa-chevron-down text-[10px] text-gray-400 flex-shrink-0"></i>
+                    </button>
+                    {popup}
+                </>
+            );
+        };
         const fmtMoney = (n) => Number(n || 0).toLocaleString('en-IN');
 
         const Toast = ({ message, type, onClose }) => {
@@ -259,6 +334,10 @@
             const [donFilterMember, setDonFilterMember] = useState('');
             const [donFilterEvent, setDonFilterEvent] = useState('');
             const [donMemberQuery, setDonMemberQuery] = useState('');
+            const [incomesList, setIncomesList] = useState([]);
+            const [showIncomeBreakdown, setShowIncomeBreakdown] = useState(false);
+            const [showAddIncomeForm, setShowAddIncomeForm] = useState(false);
+            const [newIncomeData, setNewIncomeData] = useState({ source: '', customSource: '', amount: '', date: '', note: '' });
 
             // সদস্যের ডোনেশন = Donations শিটে ওই সদস্যের ওই বছরের সব রেকর্ডের যোগফল
             const yearDataFull = useMemo(() => {
@@ -372,6 +451,7 @@
                 fetchEvents();
                 fetchDonations();
                 fetchOpeningBalance();
+                fetchIncomes();
             };
 
             const isValidCSV = (text) => {
@@ -470,6 +550,23 @@
                     setEventsData(evList.reverse());
                 } catch (error) {
                     console.error('Events fetch error:', error);
+                }
+            };
+
+            // অন্যান্য আয় (Income শিট): Apps Script (doGet) থেকে আসে
+            const fetchIncomes = async () => {
+                try {
+                    const response = await fetch(`${APPS_SCRIPT_URL}?action=incomes&t=${new Date().getTime()}`, { cache: 'no-store' });
+                    if (!response.ok) return;
+                    const result = await response.json();
+                    if (result.status === 'success' && Array.isArray(result.incomes)) {
+                        setIncomesList(result.incomes.map(x => {
+                            const dt = parseAnyDate(x.date);
+                            return { id: x.id, date: x.date, source: (x.source || '').trim(), amount: Number(x.amount) || 0, note: x.note || '', year: dt ? dt.getFullYear() : null };
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Incomes fetch error:', error);
                 }
             };
 
@@ -697,7 +794,19 @@
                 const totalAllExpense = totalExpenseAmt + totalEventExpense;
                 const openingTotal = openingList.reduce((a, o) => a + o.amount, 0);
                 // বর্তমান ব্যালেন্স = পূর্ববর্তী বছরের জের + সব বছরের চাঁদা ও ডোনেশন − সব খরচ
-                const currentBalance = openingTotal + totalIncome - totalAllExpense;
+                // অন্যান্য আয় (প্রকল্প, অনুদান ইত্যাদি) আর চাঁদা/ডোনেশনের ভাগ
+                let subAll = 0, donAll = 0, subYr = 0, donYr = 0;
+                Object.keys(yearDataFull).forEach(y => yearDataFull[y].forEach(m => {
+                    subAll += m.monthlyPaidTotal || 0; donAll += m.donation || 0;
+                    if (Number(y) === selectedYear) { subYr += m.monthlyPaidTotal || 0; donYr += m.donation || 0; }
+                }));
+                const otherAll = incomesList.reduce((a, x) => a + x.amount, 0);
+                const otherYr = incomesList.reduce((a, x) => x.year === selectedYear ? a + x.amount : a, 0);
+                const displaySub = allYears ? subAll : subYr;
+                const displayDon = allYears ? donAll : donYr;
+                const displayOtherIncome = allYears ? otherAll : otherYr;
+                const displayTotalIncome = displaySub + displayDon + displayOtherIncome;
+                const currentBalance = openingTotal + totalIncome + otherAll - totalAllExpense;
                 // বছর ট্যাবে খরচ = ওই বছরের তারিখের খরচ; "সব" ট্যাবে সব খরচ
                 const yearExpense = expensesData.reduce((a, e) => {
                     const d = parseAnyDate(e.date);
@@ -717,9 +826,13 @@
                     currentBalance, 
                     openingTotal,
                     displayExpense,
+                    displaySub,
+                    displayDon,
+                    displayOtherIncome,
+                    displayTotalIncome,
                     percentage 
                 };
-            }, [membersData, yearDataFull, expensesData, eventsData, allYears, openingList, selectedYear]);
+            }, [membersData, yearDataFull, expensesData, eventsData, allYears, openingList, selectedYear, incomesList]);
 
             // সাম্প্রতিক লেনদেন = ডোনেশন (+) ও খরচ (−), নতুন আগে
             const transactions = useMemo(() => {
@@ -732,9 +845,13 @@
                     const dt = parseAnyDate(e.date);
                     list.push({ kind: 'expense', title: e.purpose, sub: '', amount: Number(e.amount) || 0, date: dt, rawDate: e.date, order: i, year: dt ? dt.getFullYear() : null });
                 });
+                incomesList.forEach((x, i) => {
+                    const dt = parseAnyDate(x.date);
+                    list.push({ kind: 'income', title: x.source || 'আয়', sub: x.note || '', amount: x.amount, date: dt, rawDate: x.date, order: i, year: dt ? dt.getFullYear() : null });
+                });
                 list.sort((a, b) => ((b.date ? b.date.getTime() : 0) - (a.date ? a.date.getTime() : 0)) || (b.order - a.order));
                 return list;
-            }, [donationsList, expensesData]);
+            }, [donationsList, expensesData, incomesList]);
 
             const filteredMembers = useMemo(() => {
                 return membersData.filter(member => 
@@ -797,6 +914,9 @@
                     } else if (editTarget === 'add_expense') {
                         setNewExpenseData({ purpose: '', customPurpose: '', amount: '', date: todayISO() }); 
                         setShowAddExpenseForm(true);
+                    } else if (editTarget === 'add_income') {
+                        setNewIncomeData({ source: '', customSource: '', amount: '', date: todayISO(), note: '' });
+                        setShowAddIncomeForm(true);
                     } else if (editTarget === 'add_event') {
                         setEditingEvent(null);
                         setNewEventData({ date: isoToSheetDate(todayISO()), name: '', details: '' });
@@ -919,6 +1039,21 @@
                 }
             };
 
+            const submitIncome = async () => {
+                const d = newIncomeData;
+                const finalSource = d.source === '__others__' ? (d.customSource || '').trim() : d.source;
+                if (!finalSource) { showToast('আয়ের উৎস নির্বাচন করুন বা লিখুন!', 'error'); return; }
+                if (!d.date) { showToast('আয়ের তারিখ দিন!', 'error'); return; }
+                if (!d.amount || Number(d.amount) <= 0) { showToast('টাকার পরিমাণ লিখুন!', 'error'); return; }
+                const amount = Number(d.amount);
+                const note = (d.note || '').trim();
+                const ok = await performUpdate({ updateType: 'add_income', source: finalSource, amount, date: d.date, note }, 'আয় সফলভাবে যুক্ত হয়েছে!');
+                if (ok) {
+                    const dt = parseAnyDate(d.date);
+                    setIncomesList(prev => [...prev, { id: String(Date.now()), date: d.date, source: finalSource, amount, note, year: dt ? dt.getFullYear() : null }]);
+                }
+            };
+
             const submitExpense = () => {
                 const finalPurpose = newExpenseData.purpose === '__others__'
                     ? (newExpenseData.customPurpose || '').trim()
@@ -980,6 +1115,7 @@
                         setShowAddExpenseForm(false);
                         setShowAddEventForm(false);
                         setShowAddMemberForm(false);
+                        setShowAddIncomeForm(false);
                         
                         setTimeout(fetchAllData, 3000); 
                     } else { 
@@ -1067,9 +1203,9 @@
             const renderPayCard = (due) => (
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-pink-100">
                     <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-pink-50 text-pink-600 flex items-center justify-center text-lg flex-shrink-0"><i className="fas fa-mobile-alt"></i></div>
+                        <div className="pay-icon w-11 h-11 rounded-2xl bg-pink-50 text-pink-600 flex items-center justify-center text-lg flex-shrink-0"><i className="fas fa-mobile-alt"></i></div>
                         <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm">চাঁদা পরিশোধ করুন</p>
+                            <p className="pay-title text-sm">চাঁদা পরিশোধ করুন</p>
                             <p className="text-[11px] text-gray-400">বন্ধন হিসাব অ্যাকাউন্ট</p>
                         </div>
                     </div>
@@ -1079,7 +1215,7 @@
                                 <p className="text-[11px] text-pink-700 font-semibold">{acc.name} নম্বর</p>
                                 <p className="text-lg font-bold text-pink-700 tracking-wide">{acc.number}</p>
                             </div>
-                            <button onClick={() => copyText(acc.number)} className="px-3 py-1.5 rounded-lg bg-white text-pink-600 text-xs font-bold shadow-sm active:scale-95 transition-transform">
+                            <button onClick={() => copyText(acc.number)} className="pay-copy px-3 py-1.5 rounded-lg bg-white text-pink-600 text-xs font-bold shadow-sm active:scale-95 transition-transform">
                                 <i className="far fa-copy mr-1"></i>কপি
                             </button>
                         </div>
@@ -1105,20 +1241,14 @@
                         {isNew && (
                             <div>
                                 <label className="text-xs font-semibold text-gray-500 mb-1 block">কোন বছরের তালিকায় যুক্ত হবে</label>
-                                <select value={data.year} onChange={(e) => setData({ ...data, year: Number(e.target.value) })} className={inputCls}>
-                                    {YEARS.map(y => (<option key={y} value={y}>{y}</option>))}
-                                </select>
+                                <SmartSelect title="বছর নির্বাচন" className={inputCls} value={String(data.year)} onChange={(v) => setData({ ...data, year: Number(v) })} options={YEARS.map(y => ({ value: String(y), label: String(y) }))} />
                             </div>
                         )}
                         {isNew && fld('সদস্য আইডি *', 'id', { placeholder: 'যেমন: BS-170601' })}
                         {fld('নাম *', 'name')}
                         <div>
                             <label className="text-xs font-semibold text-gray-500 mb-1 block">স্ট্যাটাস</label>
-                            <select value={data.status} onChange={(e) => setData({ ...data, status: e.target.value })} className={inputCls}>
-                                <option value="PM">PM (Permanent Member)</option>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                            </select>
+                            <SmartSelect title="স্ট্যাটাস নির্বাচন" className={inputCls} value={data.status} onChange={(v) => setData({ ...data, status: v })} options={[{ value: 'PM', label: 'PM (Permanent Member)' }, { value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]} />
                         </div>
                         {fld('পিতার নাম', 'fatherName')}
                         {fld('জন্ম তারিখ', 'dob', { placeholder: 'যেমন: 15-Mar-1990' })}
@@ -1228,17 +1358,11 @@
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-[11px] font-semibold text-gray-500 mb-1 block"><i className="far fa-user mr-1"></i>ব্যক্তি</label>
-                                    <select value={donFilterMember} onChange={(e) => setDonFilterMember(e.target.value)} className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-emerald-500 shadow-sm">
-                                        <option value="">সবাই</option>
-                                        {memberOpts.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}
-                                    </select>
+                                    <SmartSelect title="ব্যক্তি নির্বাচন" placeholder="সবাই" className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-emerald-500 shadow-sm" value={donFilterMember} onChange={setDonFilterMember} options={[{ value: '', label: 'সবাই' }, ...memberOpts.map(m => ({ value: m.id, label: m.name, sub: m.id }))]} />
                                 </div>
                                 <div>
                                     <label className="text-[11px] font-semibold text-gray-500 mb-1 block"><i className="far fa-calendar-check mr-1"></i>ইভেন্ট</label>
-                                    <select value={donFilterEvent} onChange={(e) => setDonFilterEvent(e.target.value)} className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-emerald-500 shadow-sm">
-                                        <option value="">সব ইভেন্ট</option>
-                                        {eventOpts.map(ev => (<option key={ev} value={ev}>{ev}</option>))}
-                                    </select>
+                                    <SmartSelect title="ইভেন্ট নির্বাচন" placeholder="সব ইভেন্ট" className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-emerald-500 shadow-sm" value={donFilterEvent} onChange={setDonFilterEvent} options={[{ value: '', label: 'সব ইভেন্ট' }, ...eventOpts.map(ev => ({ value: ev, label: ev }))]} />
                                 </div>
                             </div>
                             {filtered && (
@@ -1269,6 +1393,151 @@
                                 </div>
                             )}
                         </div>
+
+                        {renderFooter()}
+                    </div>
+                );
+            };
+
+            const renderFooter = () => (
+                <div className="mt-8">
+                    <div id="contact-panel" className="mx-4 bg-white rounded-3xl p-5 shadow-sm border border-gray-50">
+                        <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2"><i className={`fas fa-address-book ${currentTheme.accent}`}></i> যোগাযোগ</h3>
+                        <div className="space-y-3">
+                            {CONTACT.address && (
+                                <div className="flex items-start gap-3">
+                                    <span className={`w-9 h-9 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center flex-shrink-0`}><i className="fas fa-map-marker-alt"></i></span>
+                                    <div><p className="text-[11px] text-gray-400">ঠিকানা</p><p className="text-sm font-medium text-gray-800">{CONTACT.address}</p></div>
+                                </div>
+                            )}
+                            {CONTACT.phones.map(p => (
+                                <a key={p.tel} href={`tel:${p.tel}`} className="flex items-start gap-3">
+                                    <span className={`w-9 h-9 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center flex-shrink-0`}><i className="fas fa-phone-alt"></i></span>
+                                    <div><p className="text-[11px] text-gray-400">{p.label}</p><p className="text-sm font-medium text-gray-800">{p.display}</p></div>
+                                </a>
+                            ))}
+                            {CONTACT.email && (
+                                <a href={`mailto:${CONTACT.email}`} className="flex items-start gap-3">
+                                    <span className={`w-9 h-9 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center flex-shrink-0`}><i className="fas fa-envelope"></i></span>
+                                    <div className="min-w-0"><p className="text-[11px] text-gray-400">ইমেইল</p><p className="text-sm font-medium text-gray-800 break-all">{CONTACT.email}</p></div>
+                                </a>
+                            )}
+                            {CONTACT.website && (
+                                <a href={CONTACT.website} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3">
+                                    <span className={`w-9 h-9 rounded-xl ${currentTheme.bgLight} ${currentTheme.accent} flex items-center justify-center flex-shrink-0`}><i className="fas fa-globe"></i></span>
+                                    <div className="min-w-0"><p className="text-[11px] text-gray-400">ওয়েবসাইট</p><p className="text-sm font-medium text-gray-800 break-all">{CONTACT.website.replace(/^https?:\/\//, '')}</p></div>
+                                </a>
+                            )}
+                        </div>
+                        {CONTACT.socials.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <p className="text-[11px] text-gray-400 mb-2">সোশ্যাল মিডিয়া</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {CONTACT.socials.map(so => (
+                                        <a key={so.url} href={so.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center gap-2 active:scale-95 transition-transform">
+                                            <i className={so.icon}></i> {so.name}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="text-center mt-6 pb-2 px-6">
+                        <p className="text-[11px] text-gray-400">© {new Date().getFullYear()} Bondhon. All rights reserved.</p>
+                        <p className="text-[11px] text-gray-400 mt-1">Developed by <span className="font-semibold text-gray-500">KM Mamun</span></p>
+                    </div>
+                </div>
+            );
+
+            const renderIncomeBreakdown = () => {
+                if (!showIncomeBreakdown) return null;
+                const periodLabel = allYears ? 'সব বছর' : toBn(selectedYear);
+                const inPeriod = (y) => allYears || y === selectedYear;
+                const total = stats.displayTotalIncome;
+                const pct = (v) => total > 0 ? Math.round((v / total) * 100) : 0;
+
+                const donByEvent = {};
+                donationsList.forEach(d => {
+                    if (inPeriod(Number(d.year))) { const k = (d.eventName || 'অন্যান্য').trim(); donByEvent[k] = (donByEvent[k] || 0) + d.amount; }
+                });
+                const otherBySource = {};
+                incomesList.forEach(x => {
+                    if (allYears || x.year === selectedYear) {
+                        const k = x.source || 'অন্যান্য';
+                        if (!otherBySource[k]) otherBySource[k] = { total: 0, items: [] };
+                        otherBySource[k].total += x.amount;
+                        otherBySource[k].items.push(x);
+                    }
+                });
+
+                const rows = [
+                    { key: 'sub', icon: 'fa-calendar-check', tint: 'bg-emerald-50 text-emerald-600', bar: 'bg-emerald-500', label: 'বাৎসরিক চাঁদা থেকে আয়', amount: stats.displaySub },
+                    { key: 'don', icon: 'fa-hand-holding-heart', tint: 'bg-blue-50 text-blue-600', bar: 'bg-blue-500', label: 'ডোনেশন থেকে আয়', amount: stats.displayDon },
+                    { key: 'oth', icon: 'fa-coins', tint: 'bg-amber-50 text-amber-600', bar: 'bg-amber-500', label: 'অন্যান্য আয় (প্রকল্প, অনুদান ইত্যাদি)', amount: stats.displayOtherIncome }
+                ];
+                return (
+                    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm p-4" onClick={() => setShowIncomeBreakdown(false)}>
+                        <div className="bg-white w-full max-w-md mx-auto rounded-3xl max-h-[85vh] flex flex-col shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-between items-center p-5 border-b border-gray-100">
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">আয়ের খাতভিত্তিক হিসাব</h2>
+                                    <p className="text-xs text-gray-400 mt-0.5">{periodLabel}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => { setShowIncomeBreakdown(false); setEditTarget('add_income'); setShowEditPinModal(true); }} className={`px-3 h-8 rounded-full text-white text-xs font-bold flex items-center gap-1.5 ${currentTheme.primary} active:scale-95 transition-transform`}><i className="fas fa-plus text-[10px]"></i> আয় যোগ</button>
+                                    <button onClick={() => setShowIncomeBreakdown(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"><i className="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                            <div className="p-5 overflow-y-auto space-y-3 flex-1 no-scrollbar">
+                                <div className={`bg-gradient-to-br ${currentTheme.gradient} text-white rounded-2xl p-4`}>
+                                    <p className="text-xs text-white/85">মোট আয়</p>
+                                    <p className="text-2xl font-bold mt-0.5">৳ {fmtMoney(total)}</p>
+                                </div>
+                                {rows.map(r => (
+                                    <div key={r.key} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                        <div className="flex items-center gap-3">
+                                            <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${r.tint}`}><i className={`fas ${r.icon}`}></i></span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-gray-800 text-sm">{r.label}</p>
+                                                <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden mt-1.5"><div className={`h-full rounded-full ${r.bar}`} style={{ width: `${pct(r.amount)}%` }}></div></div>
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                                <p className="font-bold text-gray-900 text-sm">৳ {fmtMoney(r.amount)}</p>
+                                                <p className="text-[10px] text-gray-400">{pct(r.amount)}%</p>
+                                            </div>
+                                        </div>
+                                        {r.key === 'don' && Object.keys(donByEvent).length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-gray-200 space-y-1.5">
+                                                {Object.keys(donByEvent).map(k => (
+                                                    <div key={k} className="flex justify-between text-xs text-gray-600"><span className="truncate pr-3">{k}</span><span className="font-semibold whitespace-nowrap">৳ {fmtMoney(donByEvent[k])}</span></div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {r.key === 'oth' && Object.keys(otherBySource).length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                                                {Object.keys(otherBySource).map(k => (
+                                                    <div key={k}>
+                                                        <div className="flex justify-between text-xs text-gray-700 font-semibold"><span className="truncate pr-3">{k}</span><span className="whitespace-nowrap">৳ {fmtMoney(otherBySource[k].total)}</span></div>
+                                                        {otherBySource[k].items.map((it, i) => {
+                                                            const dt = parseAnyDate(it.date);
+                                                            return (
+                                                                <div key={i} className="flex justify-between text-[11px] text-gray-400 mt-0.5 pl-3">
+                                                                    <span className="truncate pr-3">{dt ? fmtBnDate(dt) : it.date}{it.note ? ' · ' + it.note : ''}</span>
+                                                                    <span className="whitespace-nowrap">৳ {fmtMoney(it.amount)}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {stats.openingTotal !== 0 && (
+                                    <p className="text-[11px] text-gray-400 text-center pt-1">পূর্ববর্তী বছরের জের (৳ {fmtMoney(stats.openingTotal)}) এই হিসাবের বাইরে, শুধু ব্যালেন্সে যোগ আছে।</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 );
             };
@@ -1292,17 +1561,25 @@
                 const goPin = (target) => () => { setEditTarget(target); setShowEditPinModal(true); };
                 const quick = [
                     { icon: 'fa-hand-holding-heart', label: 'ডোনেশন', tint: 'bg-emerald-50 text-emerald-600', onClick: () => setActiveTab('donations') },
+                    { icon: 'fa-coins', label: 'আয়', tint: 'bg-sky-50 text-sky-600', onClick: goPin('add_income') },
                     { icon: 'fa-minus', label: 'খরচ', tint: 'bg-rose-50 text-rose-600', onClick: goPin('add_expense') },
                     { icon: 'fa-bullhorn', label: 'নোটিশ', tint: currentTheme.bgLight + ' ' + currentTheme.accent, onClick: goPin('add_notice') },
                     { icon: 'fa-calendar-plus', label: 'প্রোগ্রাম', tint: 'bg-blue-50 text-blue-600', onClick: goPin('add_event') },
                     { icon: 'fa-calendar-check', label: 'কার্যক্রম', tint: 'bg-amber-50 text-amber-600', onClick: () => { setExpandedEventId(null); setShowEvents(true); } },
-                    { icon: 'fa-user-plus', label: 'নতুন সদস্য', tint: 'bg-violet-50 text-violet-600', onClick: goPin('add_member') }
+                    { icon: 'fa-user-plus', label: 'নতুন সদস্য', tint: 'bg-violet-50 text-violet-600', onClick: goPin('add_member') },
+                    { icon: 'fa-address-book', label: 'যোগাযোগ', tint: 'bg-teal-50 text-teal-600', onClick: () => { const el = document.getElementById('contact-panel'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
                 ];
                 const chips = [
                     { k: 'all', l: 'সব', n: periodTx.length },
                     { k: 'donation', l: 'ডোনেশন', n: periodTx.filter(t => t.kind === 'donation').length },
+                    { k: 'income', l: 'আয়', n: periodTx.filter(t => t.kind === 'income').length },
                     { k: 'expense', l: 'খরচ', n: periodTx.filter(t => t.kind === 'expense').length }
                 ];
+                const KIND = {
+                    donation: { icon: 'fa-hand-holding-heart', tint: 'bg-emerald-50 text-emerald-600', text: 'text-emerald-600', sign: '+', tag: 'ডোনেশন' },
+                    income: { icon: 'fa-coins', tint: 'bg-sky-50 text-sky-600', text: 'text-sky-600', sign: '+', tag: 'আয়' },
+                    expense: { icon: 'fa-receipt', tint: 'bg-rose-50 text-rose-500', text: 'text-rose-500', sign: '-', tag: 'খরচ' }
+                };
 
                 return (
                     <div className="animate-slide-up pb-32">
@@ -1346,12 +1623,13 @@
                                     ))}
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 mt-3">
-                                    <div className="bg-white rounded-2xl p-3">
+                                    <button onClick={() => isAuthorized ? setShowIncomeBreakdown(true) : setShowAuthModal(true)} className="bg-white rounded-2xl p-3 text-left active:scale-[0.98] transition-transform">
                                         <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
                                             <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center"><i className="fas fa-arrow-down text-[9px]"></i></span>আয়
+                                            <i className="fas fa-chevron-right text-[9px] opacity-50 ml-auto"></i>
                                         </div>
-                                        <p className="text-lg font-bold text-emerald-600 mt-1">৳ {isAuthorized ? fmtMoney(stats.displayIncome) : '****'}</p>
-                                    </div>
+                                        <p className="text-lg font-bold text-emerald-600 mt-1">৳ {isAuthorized ? fmtMoney(stats.displayTotalIncome) : '****'}</p>
+                                    </button>
                                     <button onClick={() => isAuthorized ? setShowExpenseList(true) : setShowAuthModal(true)} className="bg-white rounded-2xl p-3 text-left active:scale-[0.98] transition-transform">
                                         <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500">
                                             <span className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center"><i className="fas fa-arrow-up text-[9px]"></i></span>ব্যয়
@@ -1382,11 +1660,11 @@
 
                         {/* ===== Quick actions ===== */}
                         <div className="px-4 mt-5">
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-4 gap-2.5">
                                 {quick.map(q => (
-                                    <button key={q.label} onClick={q.onClick} className="flex flex-col items-center gap-2 bg-white rounded-2xl py-3.5 shadow-sm border border-gray-50 active:scale-95 transition-transform">
-                                        <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg ${q.tint}`}><i className={`fas ${q.icon}`}></i></span>
-                                        <span className="text-[11px] font-semibold text-gray-700">{q.label}</span>
+                                    <button key={q.label} onClick={q.onClick} className="flex flex-col items-center gap-2 bg-white rounded-2xl py-3 shadow-sm border border-gray-50 active:scale-95 transition-transform">
+                                        <span className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base ${q.tint}`}><i className={`fas ${q.icon}`}></i></span>
+                                        <span className="text-[10.5px] font-semibold text-gray-700 leading-tight text-center">{q.label}</span>
                                     </button>
                                 ))}
                             </div>
@@ -1416,19 +1694,19 @@
                             ) : (
                                 <div className="space-y-2.5">
                                     {visibleFeed.map((t, i) => {
-                                        const isDon = t.kind === 'donation';
+                                        const kd = KIND[t.kind] || KIND.expense;
                                         return (
                                             <div key={i} className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm border border-gray-50">
-                                                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${isDon ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
-                                                    <i className={`fas ${isDon ? 'fa-hand-holding-heart' : 'fa-receipt'}`}></i>
+                                                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${kd.tint}`}>
+                                                    <i className={`fas ${kd.icon}`}></i>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-semibold text-gray-800 text-sm truncate">{t.title}</p>
                                                     <p className="text-[11px] text-gray-400 mt-0.5 truncate"><i className="far fa-clock mr-1"></i>{t.date ? fmtBnDate(t.date) : t.rawDate}{t.sub ? ' · ' + t.sub : ''}</p>
                                                 </div>
                                                 <div className="text-right flex-shrink-0">
-                                                    <p className={`font-bold text-sm ${isDon ? 'text-emerald-600' : 'text-rose-500'}`}>{isDon ? '+' : '-'}৳{fmtMoney(t.amount)}</p>
-                                                    <span className={`inline-block mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${isDon ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>{isDon ? 'ডোনেশন' : 'খরচ'}</span>
+                                                    <p className={`font-bold text-sm ${kd.text}`}>{kd.sign}৳{fmtMoney(t.amount)}</p>
+                                                    <span className={`inline-block mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${kd.tint}`}>{kd.tag}</span>
                                                 </div>
                                             </div>
                                         );
@@ -1475,6 +1753,8 @@
                                 <i className="fas fa-chevron-right text-gray-300"></i>
                             </div>
                         </div>
+
+                        {renderFooter()}
                     </div>
                 );
             };
@@ -1531,6 +1811,8 @@
                             <p>No members found</p>
                         </div>
                     )}
+                
+                    {renderFooter()}
                 </div>
             );
 
@@ -1859,11 +2141,7 @@
                                     })()}
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">ডোনেশনের ধরন / ইভেন্ট</label>
-                                        <select value={donationData.eventId} onChange={(e) => setDonationData({...donationData, eventId: e.target.value})} className={inputCls}>
-                                            <option value="">-- ইভেন্ট নির্বাচন করুন --</option>
-                                            {eventsData.map((ev, i) => (<option key={i} value={String(i)}>{ev.name}{ev.date ? ` (${ev.date})` : ''}</option>))}
-                                            <option value="__general__">{GENERAL_DONATION_LABEL}</option>
-                                        </select>
+                                        <SmartSelect title="ডোনেশনের ধরন / ইভেন্ট" placeholder="-- ইভেন্ট নির্বাচন করুন --" className={inputCls} value={donationData.eventId} onChange={(v) => setDonationData({...donationData, eventId: v})} options={[...eventsData.map((ev, i) => ({ value: String(i), label: ev.name, sub: ev.date || '' })), { value: '__general__', label: GENERAL_DONATION_LABEL }]} />
                                     </div>
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">দানের তারিখ</label>
@@ -1912,6 +2190,56 @@
                         </div>
                     )}
 
+                    {showAddIncomeForm && (
+                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+                            <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
+                                <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
+                                    <i className="fas fa-plus-circle text-sky-500"></i> নতুন আয় যোগ করুন
+                                </h2>
+                                <div className="space-y-4 text-left">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">আয়ের উৎস (Source)</label>
+                                        <SmartSelect
+                                            title="আয়ের উৎস নির্বাচন"
+                                            placeholder="-- উৎস নির্বাচন করুন --"
+                                            className={inputCls}
+                                            value={newIncomeData.source}
+                                            onChange={(v) => setNewIncomeData({ ...newIncomeData, source: v, customSource: '' })}
+                                            options={[
+                                                ...INCOME_SOURCES.map(x => ({ value: x, label: x })),
+                                                ...[...new Set(eventsData.map(ev => ev.name))].filter(n => !INCOME_SOURCES.includes(n)).map(n => ({ value: n, label: n, sub: 'প্রকল্প / ইভেন্ট' })),
+                                                { value: '__others__', label: 'অন্যান্য (নিজে লিখুন)' }
+                                            ]}
+                                        />
+                                        {newIncomeData.source === '__others__' && (
+                                            <input type="text" value={newIncomeData.customSource} onChange={(e) => setNewIncomeData({ ...newIncomeData, customSource: e.target.value })} placeholder="যেমন: বই বিক্রয়, ভাড়া, সুদ..." className={inputCls + ' mt-2'} />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">টাকার পরিমাণ (৳)</label>
+                                        <input type="number" inputMode="numeric" min="0" value={newIncomeData.amount} onChange={(e) => setNewIncomeData({ ...newIncomeData, amount: e.target.value })} placeholder="যেমন: ৫০০০" className={inputCls} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">আয়ের তারিখ (Date)</label>
+                                        <input type="date" value={newIncomeData.date} onChange={(e) => setNewIncomeData({ ...newIncomeData, date: e.target.value })} className={inputCls} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">বিবরণ (ঐচ্ছিক)</label>
+                                        <input type="text" value={newIncomeData.note} onChange={(e) => setNewIncomeData({ ...newIncomeData, note: e.target.value })} placeholder="যেমন: কার কাছ থেকে, কী বাবদ" className={inputCls} />
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-8">
+                                    <button onClick={() => setShowAddIncomeForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
+                                    <button onClick={submitIncome} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                        {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'আয় যোগ করুন'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {renderIncomeBreakdown()}
+
                     {showAddExpenseForm && (
                         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
                             <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up">
@@ -1921,7 +2249,7 @@
                                 <div className="space-y-4 text-left">
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">খরচের খাত (Purpose)</label>
-                                        <select value={newExpenseData.purpose} onChange={(e) => setNewExpenseData({...newExpenseData, purpose: e.target.value, customPurpose: ''})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"><option value="">-- খাত নির্বাচন করুন --</option>{[...new Set(eventsData.map(ev => ev.name))].map((name, i) => (<option key={i} value={name}>{name}</option>))}<option value="__others__">Others (অন্যান্য)</option></select>{newExpenseData.purpose === '__others__' && (<input type="text" value={newExpenseData.customPurpose} onChange={(e) => setNewExpenseData({...newExpenseData, customPurpose: e.target.value})} placeholder="যেমন: ব্যানার প্রিন্ট, আপ্যায়ন..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors mt-2" />)}
+                                        <SmartSelect title="খরচের খাত নির্বাচন" placeholder="-- খাত নির্বাচন করুন --" className={inputCls} value={newExpenseData.purpose} onChange={(v) => setNewExpenseData({...newExpenseData, purpose: v, customPurpose: ''})} options={[...[...new Set(eventsData.map(ev => ev.name))].map(name => ({ value: name, label: name })), { value: '__others__', label: 'Others (অন্যান্য)' }]} />{newExpenseData.purpose === '__others__' && (<input type="text" value={newExpenseData.customPurpose} onChange={(e) => setNewExpenseData({...newExpenseData, customPurpose: e.target.value})} placeholder="যেমন: ব্যানার প্রিন্ট, আপ্যায়ন..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors mt-2" />)}
                                     </div>
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">টাকার পরিমাণ (৳)</label>
@@ -2035,6 +2363,7 @@
                                 <div className="space-y-2.5">
                                     {[
                                         { t: 'donation_new', icon: 'fa-hand-holding-heart', tint: 'bg-emerald-50 text-emerald-600', title: 'নতুন ডোনেশন', sub: 'সদস্য, ইভেন্ট ও তারিখ বেছে ডোনেশন যোগ করুন' },
+                                        { t: 'add_income', icon: 'fa-coins', tint: 'bg-sky-50 text-sky-600', title: 'নতুন আয়', sub: 'প্রকল্প বা অন্য উৎস থেকে আয় যোগ করুন' },
                                         { t: 'add_expense', icon: 'fa-minus', tint: 'bg-rose-50 text-rose-600', title: 'নতুন খরচ', sub: 'ইভেন্ট বা অন্যান্য খাতে খরচ লিখুন' },
                                         { t: 'add_notice', icon: 'fa-bullhorn', tint: currentTheme.bgLight + ' ' + currentTheme.accent, title: 'নোটিশ', sub: 'সবাইকে জানাতে নোটিশ দিন' },
                                         { t: 'add_event', icon: 'fa-calendar-plus', tint: 'bg-blue-50 text-blue-600', title: 'নতুন প্রোগ্রাম', sub: 'কার্যক্রমের তালিকায় প্রোগ্রাম যোগ করুন' },
