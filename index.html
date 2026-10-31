@@ -11,6 +11,12 @@
     <title>বন্ধন - Home of Humanity</title>
     
     <link rel="manifest" href="manifest.json">
+<script>
+    // ইনস্টল ইভেন্ট রিঅ্যাক্ট চালুর আগেই ধরে রাখা হয়
+    window.__bip = null;
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__bip = e; window.dispatchEvent(new Event('bip-ready')); });
+    window.addEventListener('appinstalled', function () { window.__bip = null; window.dispatchEvent(new Event('app-installed')); });
+</script>
     <link rel="icon" type="image/png" href="icon-192.png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     
@@ -299,7 +305,9 @@
             const [toast, setToast] = useState(null); 
             
             // Authorization States
-            const [isAuthorized, setIsAuthorized] = useState(false);
+            // সবাই সব তথ্য দেখতে পারবে; কিছু যোগ/এডিট/ডিলেট করতে গেলে পিন লাগবে
+            const isAuthorized = true;
+            const setIsAuthorized = () => {};
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [pinInput, setPinInput] = useState('');
             const SECRET_PIN = '1722'; 
@@ -335,6 +343,7 @@
             const [donFilterEvent, setDonFilterEvent] = useState('');
             const [donMemberQuery, setDonMemberQuery] = useState('');
             const [incomesList, setIncomesList] = useState([]);
+            const [paymentsList, setPaymentsList] = useState([]);
             const [showIncomeBreakdown, setShowIncomeBreakdown] = useState(false);
             const [showAddIncomeForm, setShowAddIncomeForm] = useState(false);
             const [newIncomeData, setNewIncomeData] = useState({ source: '', customSource: '', amount: '', date: '', note: '' });
@@ -366,6 +375,41 @@
             const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '' });
             
             const [isUpdating, setIsUpdating] = useState(false);
+
+            // ===== অ্যাপ ইনস্টল (PWA) =====
+            const isStandaloneMode = () => {
+                try { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; } catch (e) { return false; }
+            };
+            const uaStr = (typeof navigator !== 'undefined' ? navigator.userAgent : '') || '';
+            const isIOS = /iphone|ipad|ipod/i.test(uaStr) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isAndroid = /android/i.test(uaStr);
+            const isInAppBrowser = /FBAN|FBAV|Instagram|Messenger|; wv\)/i.test(uaStr);
+            const [installEvt, setInstallEvt] = useState(() => window.__bip || null);
+            const [isInstalled, setIsInstalled] = useState(isStandaloneMode());
+            const [showInstallCard, setShowInstallCard] = useState(false);
+            const [showInstallGuide, setShowInstallGuide] = useState(false);
+            const [installTab, setInstallTab] = useState(isIOS ? 'ios' : (isAndroid ? 'android' : 'desktop'));
+
+            useEffect(() => {
+                const onReady = () => setInstallEvt(window.__bip || null);
+                const onInstalled = () => { setIsInstalled(true); setShowInstallCard(false); setInstallEvt(null); };
+                window.addEventListener('bip-ready', onReady);
+                window.addEventListener('app-installed', onInstalled);
+                return () => { window.removeEventListener('bip-ready', onReady); window.removeEventListener('app-installed', onInstalled); };
+            }, []);
+
+            // প্রথমবার ঢুকলে (এবং অ্যাপ ইনস্টল না থাকলে) ইনস্টল কার্ড দেখানো হয়
+            useEffect(() => {
+                if (loading || isInstalled) return;
+                let seen = false;
+                try { seen = !!localStorage.getItem('bondhanInstallSeen'); } catch (e) {}
+                if (seen) return;
+                const t = setTimeout(() => {
+                    setShowInstallCard(true);
+                    try { localStorage.setItem('bondhanInstallSeen', '1'); } catch (e) {}
+                }, 1200);
+                return () => clearTimeout(t);
+            }, [loading, isInstalled]);
             
             // =========================================================================
             // লিংক কনফিগারেশন 
@@ -452,6 +496,7 @@
                 fetchDonations();
                 fetchOpeningBalance();
                 fetchIncomes();
+                fetchPayments();
             };
 
             const isValidCSV = (text) => {
@@ -550,6 +595,20 @@
                     setEventsData(evList.reverse());
                 } catch (error) {
                     console.error('Events fetch error:', error);
+                }
+            };
+
+            // চাঁদা পরিশোধের লগ (Payments শিট): কোন তারিখে কার কোন মাসের চাঁদা জমা হয়েছে
+            const fetchPayments = async () => {
+                try {
+                    const response = await fetch(`${APPS_SCRIPT_URL}?action=payments&t=${new Date().getTime()}`, { cache: 'no-store' });
+                    if (!response.ok) return;
+                    const result = await response.json();
+                    if (result.status === 'success' && Array.isArray(result.payments)) {
+                        setPaymentsList(result.payments.map(p => ({ ...p, amount: Number(p.amount) || 0, year: Number(p.year) || 0 })));
+                    }
+                } catch (error) {
+                    console.error('Payments fetch error:', error);
                 }
             };
 
@@ -732,6 +791,7 @@
                                 mobile1: cells[10] || '', 
                                 email: cells[12] || '', 
                                 wardNo: cells[7] || '', 
+                                lastPaymentDate: cells[30] || '', 
                                 joiningDate: cells[14] || '', 
                                 monthlySubscription, 
                                 jan: cells[17] || '0', 
@@ -1079,9 +1139,12 @@
                     setIsEditingMonths(false);
                     return;
                 }
+                const netChange = Object.keys(changes).reduce((a, k) => a + changes[k] - (parseFloat(selectedMember[k]) || 0), 0);
+                const monthsText = Object.keys(changes).map(k => k.charAt(0).toUpperCase() + k.slice(1)).join(', ');
                 const ok = await performUpdate({ id: selectedMember.id, updateType: 'payment_bulk', payments: changes }, 'মাসিক চাঁদা আপডেট হয়েছে!');
                 if (ok) {
                     setIsEditingMonths(false);
+                    setPaymentsList(prev => [...prev, { id: String(Date.now()), date: todayISO(), time: '', memberId: selectedMember.id, memberName: selectedMember.name, year: selectedYear, months: monthsText, details: '', amount: netChange }]);
                     setMembersData(prev => prev.map(m => {
                         if (m.id !== selectedMember.id) return m;
                         const u = { ...m };
@@ -1090,6 +1153,7 @@
                         u.monthlyPaidTotal = paid;
                         u.totalYearly = paid + (u.donation || 0);
                         u.unpaid = Math.max(0, u.expectedYearly - paid);
+                        u.lastPaymentDate = isoToLongDate(todayISO());
                         return u;
                     }));
                 }
@@ -1542,6 +1606,24 @@
                 );
             };
 
+            const doInstall = async () => {
+                if (installEvt) {
+                    try {
+                        installEvt.prompt();
+                        const choice = await installEvt.userChoice;
+                        if (choice && choice.outcome === 'accepted') {
+                            showToast('অ্যাপ ইনস্টল হচ্ছে...');
+                            setShowInstallCard(false);
+                        }
+                    } catch (e) {}
+                    window.__bip = null;
+                    setInstallEvt(null);
+                } else {
+                    // iPhone বা সরাসরি ইনস্টল সাপোর্ট না থাকলে নিয়ম দেখানো হয়
+                    setShowInstallGuide(true);
+                }
+            };
+
             const cycleTheme = () => {
                 const keys = Object.keys(themeStyles);
                 setTheme(keys[(keys.indexOf(theme) + 1) % keys.length]);
@@ -1603,9 +1685,12 @@
                                             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 border-2 border-white rounded-full text-[10px] font-bold flex items-center justify-center">{notices.length}</span>
                                         )}
                                     </button>
-                                    <button onClick={() => isAuthorized ? setIsAuthorized(false) : setShowAuthModal(true)} title={isAuthorized ? 'লক করুন' : 'আনলক করুন'} className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
-                                        <i className={`fas ${isAuthorized ? 'fa-unlock-alt' : 'fa-lock'} text-sm`}></i>
-                                    </button>
+                                    {!isInstalled && (
+                                        <button onClick={() => setShowInstallCard(true)} title="অ্যাপ ইনস্টল করুন" className="relative w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                                            <i className="fas fa-download text-sm"></i>
+                                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-300 rounded-full animate-pulse"></span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -1957,6 +2042,37 @@
                                 )}
                             </div>
 
+                            {(() => {
+                                const hist = paymentsList
+                                    .filter(p => p.memberId === selectedMember.id && p.year === selectedYear)
+                                    .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+                                const lastRaw = selectedMember.lastPaymentDate || (hist[0] ? hist[0].date : '');
+                                const lastDt = parseAnyDate(lastRaw);
+                                if (hist.length === 0 && !lastRaw) return null;
+                                return (
+                                    <div className="mt-6">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-1"><i className={`fas fa-receipt mr-2 ${currentTheme.accent}`}></i>পরিশোধের ইতিহাস</h3>
+                                        {lastRaw && <p className="text-xs text-gray-500 mb-3">সর্বশেষ চাঁদা জমা: <b className="text-gray-700">{lastDt ? fmtBnDate(lastDt) : lastRaw}</b></p>}
+                                        {hist.length > 0 && (
+                                            <div className="bg-white rounded-2xl px-4 shadow-sm border border-gray-50 divide-y divide-gray-50">
+                                                {hist.map((p, i) => {
+                                                    const dt = parseAnyDate(p.date);
+                                                    return (
+                                                        <div key={i} className="py-3 flex items-center justify-between gap-3">
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-semibold text-gray-800 truncate">{p.months || 'চাঁদা'}</p>
+                                                                <p className="text-[11px] text-gray-400 mt-0.5"><i className="far fa-clock mr-1"></i>{dt ? fmtBnDate(dt) : p.date}{p.time ? ' · ' + p.time : ''}</p>
+                                                            </div>
+                                                            <p className={`font-bold text-sm whitespace-nowrap ${p.amount >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{p.amount >= 0 ? '+' : '-'}৳{fmtMoney(Math.abs(p.amount))}</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+
                             <h3 className="text-lg font-bold text-gray-900 mb-3 mt-6">Personal Info</h3>
                             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 space-y-4">
                                 {selectedMember.joiningDate && (
@@ -2295,6 +2411,79 @@
                                     <button onClick={submitEvent} disabled={isUpdating || !newEventData.name} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${(isUpdating || !newEventData.name) ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                         {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : (editingEvent ? 'সেভ করুন' : 'যোগ করুন')}
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Install card */}
+                    {showInstallCard && !isInstalled && (
+                        <div className="fixed inset-0 z-[85] flex flex-col justify-end bg-gray-900/50 backdrop-blur-sm p-4" onClick={() => setShowInstallCard(false)}>
+                            <div className="bg-white w-full max-w-md mx-auto rounded-[28px] shadow-2xl animate-slide-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                                <div className={`bg-gradient-to-br ${currentTheme.gradient} text-white rounded-t-[28px] px-6 pt-6 pb-5 text-center relative`}>
+                                    <button onClick={() => setShowInstallCard(false)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"><i className="fas fa-times text-sm"></i></button>
+                                    <div className="w-16 h-16 rounded-2xl bg-white shadow-lg mx-auto mb-3 flex items-center justify-center overflow-hidden">
+                                        <img src="icon-192.png" alt="বন্ধন" className="w-14 h-14 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                    </div>
+                                    <h3 className="text-xl font-bold">বন্ধন অ্যাপ ইনস্টল করুন</h3>
+                                    <p className="text-xs text-white/85 mt-1">হোম স্ক্রিনে যোগ করে এক ট্যাপেই খুলুন</p>
+                                </div>
+                                <div className="p-5">
+                                    <div className="grid grid-cols-3 gap-2 mb-5 text-center">
+                                        {[{ i: 'fa-bolt', t: 'এক ট্যাপে চালু' }, { i: 'fa-expand', t: 'ফুল স্ক্রিন' }, { i: 'fa-mobile-alt', t: 'হোম স্ক্রিনে আইকন' }].map(f => (
+                                            <div key={f.t} className="bg-gray-50 rounded-2xl py-3 px-1">
+                                                <i className={`fas ${f.i} ${currentTheme.accent} text-lg`}></i>
+                                                <p className="text-[11px] font-semibold text-gray-600 mt-1.5 leading-tight">{f.t}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <button onClick={doInstall} className={`w-full py-3.5 rounded-2xl text-white font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform ${currentTheme.primary}`}>
+                                        <i className="fas fa-download"></i> {installEvt ? 'ইনস্টল করুন' : 'কীভাবে ইনস্টল করবেন'}
+                                    </button>
+                                    <button onClick={() => setShowInstallGuide(!showInstallGuide)} className="w-full mt-2.5 py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+                                        <i className="fas fa-list-ol"></i> ইনস্টলের নিয়মাবলী <i className={`fas fa-chevron-${showInstallGuide ? 'up' : 'down'} text-[10px]`}></i>
+                                    </button>
+
+                                    {showInstallGuide && (
+                                        <div className="mt-4 bg-gray-50 rounded-2xl p-4 animate-slide-up">
+                                            {isInAppBrowser && (
+                                                <p className="text-[11px] text-amber-700 bg-amber-50 rounded-xl px-3 py-2 mb-3"><i className="fas fa-info-circle mr-1"></i>আপনি Facebook/Messenger-এর ভেতরের ব্রাউজারে আছেন। ইনস্টলের জন্য ⋮ মেনু থেকে "Open in browser" দিয়ে Chrome বা Safari-তে খুলুন।</p>
+                                            )}
+                                            <div className="flex bg-white rounded-full p-1 mb-3 shadow-sm">
+                                                {[{ k: 'android', l: 'Android' }, { k: 'ios', l: 'iPhone' }, { k: 'desktop', l: 'কম্পিউটার' }].map(t => (
+                                                    <button key={t.k} onClick={() => setInstallTab(t.k)} className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all ${installTab === t.k ? currentTheme.primary + ' text-white shadow' : 'text-gray-500'}`}>{t.l}</button>
+                                                ))}
+                                            </div>
+                                            <ol className="space-y-2.5 text-sm text-gray-700">
+                                                {(installTab === 'android' ? [
+                                                    'Chrome ব্রাউজারে অ্যাপটি খুলুন।',
+                                                    'ডান পাশের ওপরে ⋮ (তিন ডট) মেনুতে চাপুন।',
+                                                    '"Install app" বা "Add to Home screen" বেছে নিন।',
+                                                    'আসা বার্তায় "Install" চাপুন। হোম স্ক্রিনে বন্ধন আইকন চলে আসবে।'
+                                                ] : installTab === 'ios' ? [
+                                                    'Safari ব্রাউজারে অ্যাপটি খুলুন (Chrome-এ হবে না)।',
+                                                    'নিচের মাঝখানের শেয়ার বাটনে (⬆️ বক্স আইকন) চাপুন।',
+                                                    'নিচে স্ক্রল করে "Add to Home Screen" বেছে নিন।',
+                                                    'ওপরের ডানে "Add" চাপুন। হোম স্ক্রিনে বন্ধন আইকন চলে আসবে।'
+                                                ] : [
+                                                    'Chrome বা Edge ব্রাউজারে অ্যাপটি খুলুন।',
+                                                    'ঠিকানার বারের ডান পাশে ইনস্টল আইকনে (⊕ বা 🖥️) চাপুন।',
+                                                    'অথবা ⋮ মেনু → "Install বন্ধন" বেছে নিন।',
+                                                    '"Install" চাপলে অ্যাপটি আলাদা উইন্ডোতে খুলবে।'
+                                                ]).map((st, i) => (
+                                                    <li key={i} className="flex gap-3">
+                                                        <span className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white ${currentTheme.primary}`}>{toBn(i + 1)}</span>
+                                                        <span className="pt-0.5">{st}</span>
+                                                    </li>
+                                                ))}
+                                            </ol>
+                                            {installTab !== 'ios' && installEvt && (
+                                                <button onClick={doInstall} className={`w-full mt-4 py-3 rounded-xl text-white font-bold text-sm ${currentTheme.primary}`}>এখনই অটো-ইনস্টল করুন</button>
+                                            )}
+                                        </div>
+                                    )}
+                                    <button onClick={() => setShowInstallCard(false)} className="w-full mt-3 py-2 text-xs font-semibold text-gray-400">পরে করব</button>
                                 </div>
                             </div>
                         </div>
