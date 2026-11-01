@@ -5,7 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#059669">
+<script>
+    // ডার্ক মোড: সেভ করা পছন্দ, না থাকলে ফোনের সেটিং; পেজ আঁকার আগেই প্রয়োগ হয় (ঝলক এড়াতে)
+    (function () {
+        try {
+            var saved = localStorage.getItem('bondhanTheme');
+            var dark = saved ? saved === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+    })();
+</script>
     <meta name="description" content="বন্ধন - Home of Humanity Member Directory">
     
     <title>বন্ধন - Home of Humanity</title>
@@ -102,6 +112,111 @@
         .pay-icon i { display: inline-block; animation: payFloat 2s ease-in-out infinite; }
         .pay-copy { animation: payWiggle 4s ease-in-out infinite; transform-origin: center; }
         @media (prefers-reduced-motion: reduce) { .pay-title, .pay-icon, .pay-icon i, .pay-copy { animation: none; } }
+    
+        /* ডার্ক মোড (html.dark) */
+        html.dark  { color-scheme: dark; }
+        html.dark, html.dark body { background-color: #0b1220; color: #e5e7eb; }
+        html.dark .progress-circle::before { background-color: #162033; }
+        html.dark .bg-white { background-color: #162033; }
+        html.dark .bg-gray-50 { background-color: #1c2940; }
+        html.dark .bg-gray-100 { background-color: #22314a; }
+        html.dark .bg-gray-200 { background-color: #2b3b57; }
+        html.dark .bg-gray-300 { background-color: #3a4b69; }
+        html.dark .bg-slate-100 { background-color: #22314a; }
+        html.dark .bg-gray-800 { background-color: #334155; }
+        html.dark .bg-gray-900 { background-color: #0b1220; }
+        html.dark .bg-\[\#f8f9fd\] { background-color: #0b1220; }
+        html.dark .bg-white\/95 { background-color: rgba(22,32,51,.96); }
+        html.dark .bg-amber-50 { background-color: rgba(245,158,11,.14); }
+        html.dark .bg-amber-100 { background-color: rgba(245,158,11,.24); }
+        html.dark .border-amber-100 { border-color: rgba(245,158,11,.30); }
+        html.dark .border-amber-200 { border-color: rgba(245,158,11,.38); }
+        html.dark .bg-blue-50 { background-color: rgba(59,130,246,.14); }
+        html.dark .bg-blue-100 { background-color: rgba(59,130,246,.24); }
+        html.dark .border-blue-100 { border-color: rgba(59,130,246,.30); }
+        html.dark .border-blue-200 { border-color: rgba(59,130,246,.38); }
+        html.dark .bg-emerald-50 { background-color: rgba(16,185,129,.14); }
+        html.dark .bg-emerald-100 { background-color: rgba(16,185,129,.24); }
+        html.dark .border-emerald-100 { border-color: rgba(16,185,129,.30); }
+        html.dark .border-emerald-200 { border-color: rgba(16,185,129,.38); }
+        html.dark .bg-fuchsia-50 { background-color: rgba(192,38,211,.14); }
+        html.dark .bg-fuchsia-100 { background-color: rgba(192,38,211,.24); }
+        html.dark .border-fuchsia-100 { border-color: rgba(192,38,211,.30); }
+        html.dark .border-fuchsia-200 { border-color: rgba(192,38,211,.38); }
+        html.dark .bg-green-50 { background-color: rgba(34,197,94,.14); }
+        html.dark .bg-green-100 { background-color: rgba(34,197,94,.24); }
+        html.dark .border-green-100 { border-color: rgba(34,197,94,.30); }
+        html.dark .border-green-200 { border-color: rgba(34,197,94,.38); }
+        html.dark .bg-pink-50 { background-color: rgba(236,72,153,.14); }
+        html.dark .bg-pink-100 { background-color: rgba(236,72,153,.24); }
+        html.dark .border-pink-100 { border-color: rgba(236,72,153,.30); }
+        html.dark .border-pink-200 { border-color: rgba(236,72,153,.38); }
+        html.dark .bg-red-50 { background-color: rgba(239,68,68,.14); }
+        html.dark .bg-red-100 { background-color: rgba(239,68,68,.24); }
+        html.dark .border-red-100 { border-color: rgba(239,68,68,.30); }
+        html.dark .border-red-200 { border-color: rgba(239,68,68,.38); }
+        html.dark .bg-rose-50 { background-color: rgba(244,63,94,.14); }
+        html.dark .bg-rose-100 { background-color: rgba(244,63,94,.24); }
+        html.dark .border-rose-100 { border-color: rgba(244,63,94,.30); }
+        html.dark .border-rose-200 { border-color: rgba(244,63,94,.38); }
+        html.dark .bg-sky-50 { background-color: rgba(14,165,233,.14); }
+        html.dark .bg-sky-100 { background-color: rgba(14,165,233,.24); }
+        html.dark .border-sky-100 { border-color: rgba(14,165,233,.30); }
+        html.dark .border-sky-200 { border-color: rgba(14,165,233,.38); }
+        html.dark .bg-teal-50 { background-color: rgba(20,184,166,.14); }
+        html.dark .bg-teal-100 { background-color: rgba(20,184,166,.24); }
+        html.dark .border-teal-100 { border-color: rgba(20,184,166,.30); }
+        html.dark .border-teal-200 { border-color: rgba(20,184,166,.38); }
+        html.dark .bg-violet-50 { background-color: rgba(139,92,246,.14); }
+        html.dark .bg-violet-100 { background-color: rgba(139,92,246,.24); }
+        html.dark .border-violet-100 { border-color: rgba(139,92,246,.30); }
+        html.dark .border-violet-200 { border-color: rgba(139,92,246,.38); }
+        html.dark .hover\:bg-blue-50:hover { background-color: rgba(59,130,246,.2); }
+        html.dark .hover\:bg-red-50:hover { background-color: rgba(239,68,68,.2); }
+        html.dark .hover\:bg-gray-50:hover { background-color: #1c2940; }
+        html.dark .hover\:bg-gray-100:hover { background-color: #22314a; }
+        html.dark .hover\:bg-gray-200:hover { background-color: #2b3b57; }
+        html.dark .active\:bg-gray-100:active { background-color: #22314a; }
+        html.dark .focus\:bg-white:focus { background-color: #162033; }
+        html.dark .border-gray-50 { border-color: #22304a; }
+        html.dark .border-gray-100 { border-color: #22304a; }
+        html.dark .border-gray-200 { border-color: #2d3d59; }
+        html.dark .border-slate-200 { border-color: #2d3d59; }
+        html.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: #22304a; }
+        html.dark .ring-white { --tw-ring-color: #162033; }
+        html.dark .ring-gray-300 { --tw-ring-color: #3a4b69; }
+        html.dark .text-gray-900 { color: #f1f5f9; }
+        html.dark .text-gray-800 { color: #f1f5f9; }
+        html.dark .text-gray-700 { color: #e2e8f0; }
+        html.dark .text-gray-600 { color: #cbd5e1; }
+        html.dark .text-gray-500 { color: #94a3b8; }
+        html.dark .text-gray-400 { color: #8190a8; }
+        html.dark .text-gray-300 { color: #64748b; }
+        html.dark .text-slate-600 { color: #cbd5e1; }
+        html.dark .text-emerald-600 { color: #34d399; }
+        html.dark .text-emerald-700 { color: #6ee7b7; }
+        html.dark .text-emerald-800 { color: #a7f3d0; }
+        html.dark .text-amber-600 { color: #fbbf24; }
+        html.dark .text-amber-700 { color: #fcd34d; }
+        html.dark .text-blue-600 { color: #60a5fa; }
+        html.dark .text-blue-700 { color: #93c5fd; }
+        html.dark .text-fuchsia-600 { color: #e879f9; }
+        html.dark .text-green-600 { color: #4ade80; }
+        html.dark .text-green-700 { color: #86efac; }
+        html.dark .text-pink-600 { color: #f472b6; }
+        html.dark .text-pink-700 { color: #f9a8d4; }
+        html.dark .text-red-600 { color: #f87171; }
+        html.dark .text-red-700 { color: #fca5a5; }
+        html.dark .text-rose-600 { color: #fb7185; }
+        html.dark .text-sky-600 { color: #38bdf8; }
+        html.dark .text-teal-600 { color: #2dd4bf; }
+        html.dark .text-violet-600 { color: #a78bfa; }
+        html.dark .hover\:text-gray-600:hover { color: #cbd5e1; }
+        html.dark .hover\:text-blue-600:hover { color: #60a5fa; }
+        html.dark .hover\:text-emerald-600:hover { color: #34d399; }
+        html.dark input, html.dark textarea { color: #f1f5f9; }
+        html.dark ::placeholder { color: #64748b; }
+        html.dark .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,.45); }
     </style>
 </head>
 <body>
@@ -118,7 +233,7 @@
                 window.location.reload();
             });
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=13').then(reg => reg.update()).catch(() => {}); // Cache buster updated
+                navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => reg.update()).catch(() => {}); // Cache buster updated
             });
         }
     </script>
@@ -246,6 +361,19 @@
                 </>
             );
         };
+        // ইভেন্টের অবস্থা: শিটের Events ট্যাবের F (Status) ও G (Status Note) কলাম
+        const EVENT_STATUSES = [
+            { key: 'planned', label: 'পরিকল্পিত', sheet: '', icon: 'fa-clock', badge: 'bg-gray-100 text-gray-500', box: 'bg-gray-50 text-gray-600' },
+            { key: 'done', label: 'সম্পন্ন', sheet: 'সম্পন্ন', icon: 'fa-check-circle', badge: 'bg-emerald-100 text-emerald-700', box: 'bg-emerald-50 text-emerald-700' },
+            { key: 'postponed', label: 'স্থগিত', sheet: 'স্থগিত', icon: 'fa-pause-circle', badge: 'bg-amber-100 text-amber-700', box: 'bg-amber-50 text-amber-700' },
+            { key: 'cancelled', label: 'বাতিল', sheet: 'বাতিল', icon: 'fa-ban', badge: 'bg-red-100 text-red-700', box: 'bg-red-50 text-red-700' }
+        ];
+        const eventStatusOf = (raw) => {
+            const t = normName(raw).toLowerCase();
+            const alias = { completed: 'done', canceled: 'cancelled' };
+            const k = alias[t] || t;
+            return EVENT_STATUSES.find(x => x.key === k || normName(x.label).toLowerCase() === k || (x.sheet && normName(x.sheet).toLowerCase() === k)) || EVENT_STATUSES[0];
+        };
         const fmtMoney = (n) => Number(n || 0).toLocaleString('en-IN');
 
         const Toast = ({ message, type, onClose }) => {
@@ -372,9 +500,34 @@
             }, [yearDataFull]);
             const [newNoticeData, setNewNoticeData] = useState({ title: '', message: '' });
             const [newExpenseData, setNewExpenseData] = useState({ purpose: '', customPurpose: '', amount: '', date: todayISO() });
-            const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '' });
+            const [newEventData, setNewEventData] = useState({ date: '', name: '', details: '', status: 'planned', statusNote: '' });
             
             const [isUpdating, setIsUpdating] = useState(false);
+
+            // ===== ব্যালেন্স/আয়/ব্যয় লুকানো (ট্যাপ করলে ১০ সেকেন্ড দেখায়) =====
+            const [revealAmounts, setRevealAmounts] = useState(false);
+            useEffect(() => {
+                if (!revealAmounts) return;
+                const t = setTimeout(() => setRevealAmounts(false), 10000);
+                return () => clearTimeout(t);
+            }, [revealAmounts]);
+
+            // ===== ডার্ক মোড =====
+            const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
+            const toggleDark = () => {
+                const next = !darkMode;
+                setDarkMode(next);
+                try { localStorage.setItem('bondhanTheme', next ? 'dark' : 'light'); } catch (e) {}
+            };
+            useEffect(() => {
+                document.documentElement.classList.toggle('dark', darkMode);
+                const meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', darkMode ? '#0b1220' : ((activeTab === 'home' || activeTab === 'donations') ? currentTheme.hex : '#ffffff'));
+            }, [darkMode, activeTab, theme]);
+
+            // ===== সদস্য মুছে ফেলা =====
+            const [showDeleteMember, setShowDeleteMember] = useState(false);
+            const [deleteScope, setDeleteScope] = useState('year');
 
             // ===== অ্যাপ ইনস্টল (PWA) =====
             const isStandaloneMode = () => {
@@ -588,7 +741,9 @@
                                 date: cells[1] || '',
                                 name: cells[2],
                                 details: cells[3] || '',
-                                expense: parseFloat(cells[4]) || 0
+                                expense: parseFloat(cells[4]) || 0,
+                                statusKey: eventStatusOf(cells[5]).key,
+                                statusNote: (cells[6] || '').trim()
                             });
                         }
                     }
@@ -979,7 +1134,7 @@
                         setShowAddIncomeForm(true);
                     } else if (editTarget === 'add_event') {
                         setEditingEvent(null);
-                        setNewEventData({ date: isoToSheetDate(todayISO()), name: '', details: '' });
+                        setNewEventData({ date: isoToSheetDate(todayISO()), name: '', details: '', status: 'planned', statusNote: '' });
                         setShowAddEventForm(true);
                     } else if (editTarget === 'donation_new') {
                         setDonMemberQuery('');
@@ -990,7 +1145,7 @@
                         setShowAddMemberForm(true);
                     } else if (editTarget === 'edit_event') {
                         if (editingEvent) {
-                            setNewEventData({ date: editingEvent.date || '', name: editingEvent.name || '', details: editingEvent.details || '' });
+                            setNewEventData({ date: editingEvent.date || '', name: editingEvent.name || '', details: editingEvent.details || '', status: editingEvent.statusKey || 'planned', statusNote: editingEvent.statusNote || '' });
                             setShowAddEventForm(true);
                         }
                     } else if (editTarget === 'delete_event') {
@@ -1079,18 +1234,19 @@
 
             const submitEvent = async () => {
                 if (!editingEvent) {
-                    performUpdate({ ...newEventData, updateType: 'add_event' }, 'নতুন প্রোগ্রাম যুক্ত হয়েছে!');
+                    performUpdate({ date: newEventData.date, name: newEventData.name, details: newEventData.details, status: eventStatusOf(newEventData.status).sheet, statusNote: (newEventData.statusNote || '').trim(), updateType: 'add_event' }, 'নতুন প্রোগ্রাম যুক্ত হয়েছে!');
                     return;
                 }
                 const ev = editingEvent;
                 const payload = {
                     updateType: 'edit_event',
                     id: ev.id, row: ev.row, oldName: ev.name, oldDate: ev.date,
-                    name: newEventData.name.trim(), date: newEventData.date, details: newEventData.details
+                    name: newEventData.name.trim(), date: newEventData.date, details: newEventData.details,
+                    status: eventStatusOf(newEventData.status).sheet, statusNote: (newEventData.statusNote || '').trim()
                 };
                 const ok = await performUpdate(payload, 'প্রোগ্রাম আপডেট হয়েছে!');
                 if (ok) {
-                    setEventsData(prev => prev.map(e => e === ev ? { ...e, name: payload.name, date: payload.date || e.date, details: payload.details } : e));
+                    setEventsData(prev => prev.map(e => e === ev ? { ...e, name: payload.name, date: payload.date || e.date, details: payload.details, statusKey: eventStatusOf(newEventData.status).key, statusNote: payload.statusNote } : e));
                     if (normName(ev.name) !== normName(payload.name)) {
                         setExpensesData(prev => prev.map(x => normName(x.purpose) === normName(ev.name) ? { ...x, purpose: payload.name } : x));
                         setDonationsList(prev => prev.map(d => normName(d.eventName) === normName(ev.name) ? { ...d, eventName: payload.name } : d));
@@ -1111,6 +1267,25 @@
                 if (ok) {
                     const dt = parseAnyDate(d.date);
                     setIncomesList(prev => [...prev, { id: String(Date.now()), date: d.date, source: finalSource, amount, note, year: dt ? dt.getFullYear() : null }]);
+                }
+            };
+
+            const submitDeleteMember = async () => {
+                const dm = membersData.find(m => m.id === editData.id);
+                if (!dm) return;
+                const memberId = dm.id;
+                const scope = deleteScope;
+                const ok = await performUpdate({ updateType: 'delete_member', id: memberId, name: dm.name, year: selectedYear, scope }, 'সদস্য মুছে ফেলা হয়েছে!');
+                if (ok) {
+                    setYearData(prev => {
+                        const out = {};
+                        Object.keys(prev).forEach(y => { out[y] = (scope === 'all' || Number(y) === selectedYear) ? prev[y].filter(m => m.id !== memberId) : prev[y]; });
+                        return out;
+                    });
+                    setShowDeleteMember(false);
+                    setShowProfileEditForm(false);
+                    setSelectedMemberId(null);
+                    setActiveTab('members');
                 }
             };
 
@@ -1506,6 +1681,12 @@
                             </div>
                         )}
                     </div>
+                    <div className="mx-4 mt-4">
+                        <button onClick={toggleDark} className="w-full bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-50 flex items-center justify-between active:scale-[0.99] transition-transform">
+                            <span className="flex items-center gap-3 text-sm font-semibold text-gray-700"><i className={`fas ${darkMode ? 'fa-sun text-amber-500' : 'fa-moon text-indigo-500'}`}></i>{darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'}</span>
+                            <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-gray-200'}`}><span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${darkMode ? 'translate-x-5' : ''}`}></span></span>
+                        </button>
+                    </div>
                     <div className="text-center mt-6 pb-2 px-6">
                         <p className="text-[11px] text-gray-400">© {new Date().getFullYear()} Bondhon. All rights reserved.</p>
                         <p className="text-[11px] text-gray-400 mt-1">Developed by <span className="font-semibold text-gray-500">KM Mamun</span></p>
@@ -1679,6 +1860,9 @@
                                     <button onClick={cycleTheme} title="থিম বদলান" className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
                                         <i className="fas fa-palette text-sm"></i>
                                     </button>
+                                    <button onClick={toggleDark} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                                        <i className={`fas ${darkMode ? 'fa-sun' : 'fa-moon'} text-sm`}></i>
+                                    </button>
                                     <button onClick={() => setShowNotices(true)} title="নোটিশ" className="relative w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
                                         <i className="far fa-bell text-sm"></i>
                                         {notices.length > 0 && (
@@ -1695,11 +1879,15 @@
                             </div>
 
                             <p className="mt-6 text-sm text-white/85"><i className="fas fa-wallet text-xs mr-2"></i>মোট ব্যালেন্স</p>
-                            <h2 className="text-4xl font-bold mt-1 tracking-tight">৳ {isAuthorized ? fmtMoney(stats.currentBalance) : '****'}</h2>
+                            <button onClick={() => setRevealAmounts(!revealAmounts)} className="mt-1 flex items-center gap-3 text-left active:opacity-80" title={revealAmounts ? 'লুকান' : 'দেখতে ট্যাপ করুন'}>
+                                <h2 className="text-4xl font-bold tracking-tight">৳ {revealAmounts ? fmtMoney(stats.currentBalance) : '*****'}</h2>
+                                <i className={`fas ${revealAmounts ? 'fa-eye' : 'fa-eye-slash'} text-white/80 text-lg`}></i>
+                            </button>
+                            <p className="text-[11px] text-white/75 mt-0.5">{revealAmounts ? 'কয়েক সেকেন্ড পর আবার লুকিয়ে যাবে' : 'অঙ্ক দেখতে ট্যাপ করুন'}</p>
                             {isAuthorized && stats.openingTotal !== 0 && (
                                 <p className="text-[11px] text-white/80 mt-1"><i className="fas fa-history mr-1"></i>পূর্ববর্তী বছরের জের ({openingList.map(o => o.year ? toBn(o.year) : '').filter(Boolean).join(', ') || 'আগের'}) সহ</p>
                             )}
-                            {!isAuthorized && <p className="text-[11px] text-white/80 mt-1">দেখতে ওপরের 🔒 দিয়ে আনলক করুন</p>}
+                            
 
                             <div className="mt-5 bg-white/15 rounded-3xl p-3">
                                 <div className="flex bg-white/20 rounded-full p-1">
@@ -1708,19 +1896,19 @@
                                     ))}
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 mt-3">
-                                    <button onClick={() => isAuthorized ? setShowIncomeBreakdown(true) : setShowAuthModal(true)} className="bg-white rounded-2xl p-3 text-left active:scale-[0.98] transition-transform">
+                                    <button onClick={() => revealAmounts ? setShowIncomeBreakdown(true) : setRevealAmounts(true)} className="bg-white rounded-2xl p-3 text-left active:scale-[0.98] transition-transform">
                                         <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
                                             <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center"><i className="fas fa-arrow-down text-[9px]"></i></span>আয়
                                             <i className="fas fa-chevron-right text-[9px] opacity-50 ml-auto"></i>
                                         </div>
-                                        <p className="text-lg font-bold text-emerald-600 mt-1">৳ {isAuthorized ? fmtMoney(stats.displayTotalIncome) : '****'}</p>
+                                        <p className="text-lg font-bold text-emerald-600 mt-1">৳ {revealAmounts ? fmtMoney(stats.displayTotalIncome) : '*****'}</p>
                                     </button>
-                                    <button onClick={() => isAuthorized ? setShowExpenseList(true) : setShowAuthModal(true)} className="bg-white rounded-2xl p-3 text-left active:scale-[0.98] transition-transform">
+                                    <button onClick={() => revealAmounts ? setShowExpenseList(true) : setRevealAmounts(true)} className="bg-white rounded-2xl p-3 text-left active:scale-[0.98] transition-transform">
                                         <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500">
                                             <span className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center"><i className="fas fa-arrow-up text-[9px]"></i></span>ব্যয়
                                             <i className="fas fa-chevron-right text-[9px] opacity-50 ml-auto"></i>
                                         </div>
-                                        <p className="text-lg font-bold text-rose-500 mt-1">৳ {isAuthorized ? fmtMoney(stats.displayExpense) : '****'}</p>
+                                        <p className="text-lg font-bold text-rose-500 mt-1">৳ {revealAmounts ? fmtMoney(stats.displayExpense) : '*****'}</p>
                                     </button>
                                 </div>
                             </div>
@@ -1822,7 +2010,7 @@
                                 <div className="flex items-center gap-3">
                                     <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-lg"><i className="fas fa-user-plus"></i></div>
                                     <div>
-                                        <h4 className="font-bold">সদস্য হতে চান?</h4>
+                                        <h4 className="font-bold">বন্ধনের সাথে যুক্ত হতে আবেদন করুন!</h4>
                                         <p className="text-xs opacity-90 mt-0.5">এখানে ক্লিক করে আবেদন করুন</p>
                                     </div>
                                 </div>
@@ -2184,6 +2372,9 @@
                                 </h2>
                                 {renderMemberFields(editData, setEditData, false)}
                                 <p className="text-[11px] text-gray-400 mt-3">তথ্য বদলালে সব বছরের তালিকায় একসাথে বদলে যাবে।</p>
+                                <button onClick={() => { setDeleteScope('year'); setShowDeleteMember(true); }} className="w-full mt-4 py-2.5 rounded-xl bg-rose-50 text-rose-500 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+                                    <i className="fas fa-user-times"></i> এই সদস্যকে মুছে ফেলুন
+                                </button>
                                 <div className="flex gap-3 mt-6">
                                     <button onClick={() => setShowProfileEditForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">বাতিল</button>
                                     <button onClick={submitProfile} disabled={isUpdating} className={`flex-1 py-3 rounded-xl text-white font-bold flex justify-center items-center transition-colors ${currentTheme.primary} ${currentTheme.hover} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
@@ -2193,6 +2384,35 @@
                             </div>
                         </div>
                     )}
+
+                    {showDeleteMember && (() => {
+                        const dm = membersData.find(m => m.id === editData.id);
+                        if (!dm) return null;
+                        return (
+                            <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+                                <div className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+                                    <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center text-2xl mx-auto mb-3"><i className="fas fa-exclamation-triangle"></i></div>
+                                    <h2 className="text-lg font-bold text-gray-900 text-center">সদস্যকে মুছে ফেলবেন?</h2>
+                                    <p className="text-center text-sm text-gray-500 mt-1"><b className="text-gray-800">{dm.name}</b> ({dm.id})</p>
+                                    <div className="mt-4 space-y-2">
+                                        {[{ k: 'year', t: `শুধু ${toBn(selectedYear)} সালের তালিকা থেকে`, s: 'অন্য বছরের তালিকায় থাকবেন' }, { k: 'all', t: 'সব বছরের তালিকা থেকে', s: 'সব ট্যাব থেকে মুছে যাবে' }].map(o => (
+                                            <button key={o.k} onClick={() => setDeleteScope(o.k)} className={`w-full text-left px-4 py-3 rounded-2xl border transition-colors flex items-center gap-3 ${deleteScope === o.k ? 'border-rose-400 bg-rose-50' : 'border-gray-200 bg-gray-50'}`}>
+                                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${deleteScope === o.k ? 'border-rose-500' : 'border-gray-300'}`}>{deleteScope === o.k && <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>}</span>
+                                                <span><span className="block text-sm font-semibold text-gray-800">{o.t}</span><span className="block text-[11px] text-gray-500">{o.s}</span></span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 bg-amber-50 rounded-xl px-3 py-2 mt-4 leading-relaxed"><i className="fas fa-info-circle mr-1 text-amber-500"></i>ওই সারির সব চাঁদার তথ্য শিট থেকে চলে যাবে। সারির একটি কপি শিটের "Deleted Members" ট্যাবে রাখা হবে। সাময়িকভাবে বাদ রাখতে চাইলে মুছে না ফেলে স্ট্যাটাস "Inactive" করুন।</p>
+                                    <div className="flex gap-3 mt-5">
+                                        <button onClick={() => setShowDeleteMember(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-colors">না, থাক</button>
+                                        <button onClick={submitDeleteMember} disabled={isUpdating} className={`flex-1 py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold flex justify-center items-center transition-colors ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                            {isUpdating ? <i className="fas fa-spinner fa-spin"></i> : 'হ্যাঁ, মুছুন'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {showAddMemberForm && (
                         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
@@ -2257,7 +2477,7 @@
                                     })()}
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">ডোনেশনের ধরন / ইভেন্ট</label>
-                                        <SmartSelect title="ডোনেশনের ধরন / ইভেন্ট" placeholder="-- ইভেন্ট নির্বাচন করুন --" className={inputCls} value={donationData.eventId} onChange={(v) => setDonationData({...donationData, eventId: v})} options={[...eventsData.map((ev, i) => ({ value: String(i), label: ev.name, sub: ev.date || '' })), { value: '__general__', label: GENERAL_DONATION_LABEL }]} />
+                                        <SmartSelect title="ডোনেশনের ধরন / ইভেন্ট" placeholder="-- ইভেন্ট নির্বাচন করুন --" className={inputCls} value={donationData.eventId} onChange={(v) => setDonationData({...donationData, eventId: v})} options={[...eventsData.map((ev, i) => ({ value: String(i), label: ev.name, sub: [ev.date, (ev.statusKey && ev.statusKey !== 'planned') ? eventStatusOf(ev.statusKey).label : ''].filter(Boolean).join(' · ') })), { value: '__general__', label: GENERAL_DONATION_LABEL }]} />
                                     </div>
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">দানের তারিখ</label>
@@ -2404,6 +2624,14 @@
                                     <div>
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block">বিস্তারিত (Details)</label>
                                         <textarea rows="4" value={newEventData.details} onChange={(e) => setNewEventData({...newEventData, details: e.target.value})} placeholder="প্রোগ্রামের সম্পূর্ণ বিবরণ লিখুন..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">প্রোগ্রামের অবস্থা</label>
+                                        <SmartSelect title="প্রোগ্রামের অবস্থা" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" value={newEventData.status} onChange={(v) => setNewEventData({...newEventData, status: v})} options={EVENT_STATUSES.map(x => ({ value: x.key, label: x.label }))} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">নোট / কারণ (ঐচ্ছিক)</label>
+                                        <textarea rows="2" value={newEventData.statusNote} onChange={(e) => setNewEventData({...newEventData, statusNote: e.target.value})} placeholder="যেমন: আবহাওয়া খারাপ থাকায় বাতিল, নতুন তারিখ পরে জানানো হবে..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"></textarea>
                                     </div>
                                 </div>
                                 <div className="flex gap-3 mt-8">
@@ -2625,8 +2853,11 @@
                                                         <i className="fas fa-bullseye text-sm"></i>
                                                     </div>
                                                     <div>
-                                                        <p className="font-semibold text-gray-800">{ev.name}</p>
+                                                        <p className={`font-semibold ${ev.statusKey === 'cancelled' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{ev.name}</p>
                                                         {ev.date && <p className="text-xs text-gray-500 mt-0.5"><i className="far fa-calendar-alt mr-1"></i>{ev.date}</p>}
+                                                        {ev.statusKey && ev.statusKey !== 'planned' && (
+                                                            <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${eventStatusOf(ev.statusKey).badge}`}><i className={`fas ${eventStatusOf(ev.statusKey).icon} mr-1`}></i>{eventStatusOf(ev.statusKey).label}</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -2642,6 +2873,12 @@
                                             {expandedEventId === idx && (
                                                 <div className="px-4 pb-4 pt-1 border-t border-gray-100">
                                                     {ev.details && <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap mb-3">{ev.details}</p>}
+                                                    {((ev.statusKey && ev.statusKey !== 'planned') || ev.statusNote) && (
+                                                        <div className={`rounded-lg px-3 py-2 mb-3 ${eventStatusOf(ev.statusKey).box}`}>
+                                                            <p className="text-xs font-bold"><i className={`fas ${eventStatusOf(ev.statusKey).icon} mr-1`}></i>অবস্থা: {eventStatusOf(ev.statusKey).label}</p>
+                                                            {ev.statusNote && <p className="text-sm mt-1 whitespace-pre-wrap">{ev.statusNote}</p>}
+                                                        </div>
+                                                    )}
                                                     <div className="bg-emerald-50 rounded-lg px-3 py-2 mb-3">
                                                         <div className="flex justify-between items-center">
                                                             <span className="text-xs font-semibold text-emerald-700"><i className="fas fa-hand-holding-heart mr-1"></i>ডোনেশন জমা ({eventDonationInfo(ev).count} জন)</span>
